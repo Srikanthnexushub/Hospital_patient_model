@@ -1,0 +1,12 @@
+# Test profile — overrides production values that require external resources.
+# Used automatically by @SpringBootTest when Testcontainers provides the DB.
+
+app:
+  jwt:
+    secret: "test-secret-key-must-be-at-least-32-chars"
+
+# Suppress verbose startup logs in tests
+logging:
+  level:
+    root: WARN
+    com.ainexus: INFO

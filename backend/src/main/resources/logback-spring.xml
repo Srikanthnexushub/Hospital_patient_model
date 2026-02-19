@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- ── JSON appender (used in Docker / production) ───────────────────── -->
+    <springProfile name="docker">
+        <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <!-- Standard fields (timestamp, level, logger, mdc, message, stackTrace)
+                     are included by default in LogstashEncoder -->
+                <customFields>{"service":"patient-module"}</customFields>
+            </encoder>
+        </appender>
+
+        <root level="${LOG_LEVEL:-INFO}">
+            <appender-ref ref="JSON_STDOUT"/>
+        </root>
+    </springProfile>
+
+    <!-- ── Human-readable appender (local dev) ──────────────────────────── -->
+    <springProfile name="!docker">
+        <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - [%X{traceId}] [%X{userId}] [%X{operation}] %msg%n</pattern>
+            </encoder>
+        </appender>
+
+        <root level="${LOG_LEVEL:-INFO}">
+            <appender-ref ref="CONSOLE"/>
+        </root>
+    </springProfile>
+
+    <!-- ── Suppress noisy framework logs ─────────────────────────────────── -->
+    <logger name="org.springframework.security" level="WARN"/>
+    <logger name="org.hibernate.SQL" level="WARN"/>
+    <logger name="com.zaxxer.hikari" level="INFO"/>
+    <logger name="org.flywaydb" level="INFO"/>
+
+</configuration>

@@ -51,4 +51,10 @@ Hospital_patient_model/
 
 ### Backups ###
 backups/
-scripts/
+
+### Frontend dependencies ###
+frontend/node_modules/
+frontend/dist/
+
+### Frontend test coverage ###
+frontend/coverage/
