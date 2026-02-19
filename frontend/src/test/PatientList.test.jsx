@@ -52,7 +52,8 @@ describe('PatientList', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('renders table with 6 column headers', () => {
-    renderList()
+    // Table only renders when patients are present; empty list shows the empty-state
+    renderList({ patients: [makeSummary('P2026001', 'Jane', 'Smith')] })
     expect(screen.getByText(/Patient ID/i)).toBeInTheDocument()
     expect(screen.getByText(/Name/i)).toBeInTheDocument()
     expect(screen.getByText(/Age/i)).toBeInTheDocument()
@@ -64,8 +65,9 @@ describe('PatientList', () => {
   it('shows pagination summary with correct counts', () => {
     const patients = [makeSummary('P2026001', 'Jane', 'Smith')]
     const pagination = { number: 0, size: 20, totalElements: 25, totalPages: 2, first: true, last: false }
-    renderList({ patients, pagination })
-    expect(screen.getByText(/Showing 1–1 of 25 patients/i)).toBeInTheDocument()
+    const { container } = renderList({ patients, pagination })
+    // Pagination text is split across <span> elements — check container text directly
+    expect(container.textContent.replace(/\s+/g, ' ')).toContain('Showing 1–1 of 25 patients')
   })
 
   it('shows "No patients found" when no results with active query', () => {

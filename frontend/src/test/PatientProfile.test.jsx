@@ -82,7 +82,8 @@ describe('PatientProfile', () => {
   it('shows Deactivate button for ADMIN + ACTIVE patient', () => {
     renderProfile(basePatient, 'ADMIN')
     expect(screen.getByRole('button', { name: /Deactivate/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Activate/i })).not.toBeInTheDocument()
+    // Use ^Activate to avoid matching "Deactivate" (which contains "activate")
+    expect(screen.queryByRole('button', { name: /^Activate/i })).not.toBeInTheDocument()
   })
 
   it('shows Activate button for ADMIN + INACTIVE patient', () => {

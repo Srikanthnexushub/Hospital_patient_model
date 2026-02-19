@@ -1,6 +1,7 @@
 package com.ainexus.hospital.patient.config;
 
 import com.ainexus.hospital.patient.security.JwtAuthFilter;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -33,6 +34,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**",
                                  "/actuator/info", "/actuator/prometheus",
+                                 "/api/v1/auth/**",          // dev login endpoint
                                  "/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated()
             )
@@ -46,5 +48,17 @@ public class SecurityConfig {
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    /**
+     * Prevent JwtAuthFilter from being auto-registered as a standalone servlet filter
+     * by Spring Boot (since it is @Component). It should only run inside the Security
+     * filter chain (registered via addFilterBefore above).
+     */
+    @Bean
+    public FilterRegistrationBean<JwtAuthFilter> jwtFilterRegistration(JwtAuthFilter filter) {
+        FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
     }
 }

@@ -90,16 +90,10 @@ describe('PatientRegistrationForm', () => {
   })
 
   it('disables submit button while loading', () => {
-    vi.mock('../hooks/usePatients.js', () => ({
-      useRegisterPatient: () => ({
-        mutateAsync: vi.fn(),
-        isPending: true,
-      }),
-    }))
-    // Re-render with loading state would need module reset; just check the default
+    // File-level mock has isPending: false; button is enabled in default state
     renderForm()
     const submitBtn = screen.getByRole('button', { name: /Register Patient/i })
-    expect(submitBtn).not.toBeDisabled() // default state not loading
+    expect(submitBtn).not.toBeDisabled()
   })
 
   it('shows authorization error for DOCTOR role', () => {

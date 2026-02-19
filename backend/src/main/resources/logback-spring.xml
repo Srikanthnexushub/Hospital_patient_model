@@ -5,31 +5,8 @@
     <springProfile name="docker">
         <appender name="JSON_STDOUT" class="ch.qos.logback.core.ConsoleAppender">
             <encoder class="net.logstash.logback.encoder.LogstashEncoder">
-                <providers>
-                    <timestamp>
-                        <fieldName>timestamp</fieldName>
-                        <timeZone>UTC</timeZone>
-                    </timestamp>
-                    <logLevel>
-                        <fieldName>level</fieldName>
-                    </logLevel>
-                    <loggerName>
-                        <fieldName>logger</fieldName>
-                        <shortenedLoggerNameLength>36</shortenedLoggerNameLength>
-                    </loggerName>
-                    <mdc/>
-                    <message>
-                        <fieldName>message</fieldName>
-                    </message>
-                    <stackTrace>
-                        <fieldName>stackTrace</fieldName>
-                        <throwableConverter class="net.logstash.logback.stacktrace.ShortenedThrowableConverter">
-                            <maxDepthPerCause>8</maxDepthPerCause>
-                            <shortenedClassNameLength>36</shortenedClassNameLength>
-                        </throwableConverter>
-                    </stackTrace>
-                </providers>
-                <!-- Static fields on every log entry -->
+                <!-- Standard fields (timestamp, level, logger, mdc, message, stackTrace)
+                     are included by default in LogstashEncoder -->
                 <customFields>{"service":"patient-module"}</customFields>
             </encoder>
         </appender>

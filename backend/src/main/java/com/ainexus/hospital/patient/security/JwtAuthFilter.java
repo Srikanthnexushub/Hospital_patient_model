@@ -32,9 +32,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        // Skip auth for health endpoints
+        // Skip auth for health and dev-auth endpoints
         String path = request.getRequestURI();
-        if (path.startsWith("/actuator/health")) {
+        if (path.startsWith("/actuator/health") || path.startsWith("/api/v1/auth/")) {
             filterChain.doFilter(request, response);
             return;
         }
