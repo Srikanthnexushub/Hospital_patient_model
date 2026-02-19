@@ -2,7 +2,7 @@
 
 **Feature Branch**: `001-patient-module`
 **Created**: 2026-02-19
-**Status**: Draft
+**Status**: Frozen — merged to main 2026-02-19
 **Version**: 3.0.0
 **Company**: Ai Nexus
 
