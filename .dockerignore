@@ -1,0 +1,36 @@
+# Git
+.git/
+.gitignore
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Spec & docs
+specs/
+Docs/
+*.md
+
+# Environment secrets (never in Docker context)
+.env
+.env.*
+!.env.example
+
+# Scripts (not needed in container)
+scripts/
+
+# SSL certs (mounted as volume)
+nginx/ssl/
+
+# Backups
+backups/
+
+# OS
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+
+# Logs
+*.log

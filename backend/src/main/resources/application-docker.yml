@@ -1,0 +1,9 @@
+# Docker profile — overrides application.yml for containerised deployment
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:db}:${DB_PORT:5432}/${DB_NAME:hospital_patients}
+    username: ${DB_USER:patient_app}
+    password: ${DB_PASSWORD}
+
+logging:
+  config: classpath:logback-spring.xml
