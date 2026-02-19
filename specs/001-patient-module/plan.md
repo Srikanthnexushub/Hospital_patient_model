@@ -1,6 +1,7 @@
 # Implementation Plan: Patient Module
 
 **Branch**: `001-patient-module` | **Date**: 2026-02-19 | **Spec**: [spec.md](./spec.md)
+**Status**: Frozen — merged to main 2026-02-19
 **Input**: Feature specification from `specs/001-patient-module/spec.md`
 
 ---

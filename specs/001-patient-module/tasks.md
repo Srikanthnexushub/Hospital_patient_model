@@ -3,6 +3,7 @@
 **Input**: Design documents from `/specs/001-patient-module/`
 **Prerequisites**: plan.md ✅, spec.md ✅, research.md ✅, data-model.md ✅, contracts/openapi.yaml ✅, quickstart.md ✅
 **Branch**: `001-patient-module`
+**Status**: Frozen — 106/106 tasks complete, merged to main 2026-02-19
 **Date**: 2026-02-19
 
 **Tests**: TDD is **MANDATORY** per Constitution Principle III — all test tasks MUST be written first and FAIL before implementation begins.
