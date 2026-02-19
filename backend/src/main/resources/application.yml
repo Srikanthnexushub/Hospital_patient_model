@@ -10,9 +10,9 @@ spring:
     timeout-per-shutdown-phase: 30s
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/hospital_patients
-    username: patient_app
-    password: patient_app
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:hospital_patients}
+    username: ${DB_USER:patient_app}
+    password: ${DB_PASSWORD:patient_app}
     driver-class-name: org.postgresql.Driver
     hikari:
       minimum-idle: ${DB_POOL_MIN:5}
