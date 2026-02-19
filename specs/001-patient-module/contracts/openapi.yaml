@@ -1,0 +1,706 @@
+openapi: 3.1.0
+info:
+  title: Hospital Management System — Patient Module API
+  version: 1.0.0
+  description: |
+    REST API for the Patient Module. All endpoints require a valid Bearer JWT token
+    issued by the Auth Module. Role-based access control is enforced server-side on
+    every request.
+
+    **Base URL (local)**: https://localhost/api/v1
+
+servers:
+  - url: https://localhost/api/v1
+    description: Local Docker environment
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Patients
+    description: Patient registration, search, profile, update, and status management
+  - name: Health
+    description: Service health and readiness endpoints
+
+# ─────────────────────────────────────────
+# PATHS
+# ─────────────────────────────────────────
+paths:
+
+  # ── US1: Register a new patient ──────────────────────────────────────────────
+  /patients:
+    post:
+      tags: [Patients]
+      summary: Register a new patient
+      operationId: registerPatient
+      description: |
+        Registers a new patient and returns the generated Patient ID.
+        **Roles allowed**: RECEPTIONIST, ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientRegistrationRequest'
+            example:
+              firstName: "Jane"
+              lastName: "Smith"
+              dateOfBirth: "1985-06-15"
+              gender: "FEMALE"
+              phone: "555-123-4567"
+              email: "jane.smith@example.com"
+              address: "123 Main St"
+              city: "Springfield"
+              state: "IL"
+              zipCode: "62701"
+              emergencyContactName: "John Smith"
+              emergencyContactPhone: "555-987-6543"
+              emergencyContactRelationship: "Spouse"
+              bloodGroup: "A_POS"
+              knownAllergies: "Penicillin"
+              chronicConditions: "Hypertension"
+      responses:
+        '201':
+          description: Patient registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientRegistrationResponse'
+              example:
+                patientId: "P2026001"
+                message: "Patient registered successfully. Patient ID: P2026001"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
+          $ref: '#/components/responses/ServiceUnavailable'
+
+  # ── US2: Search / list patients ──────────────────────────────────────────────
+    get:
+      tags: [Patients]
+      summary: Search and list patients
+      operationId: searchPatients
+      description: |
+        Returns a paginated list of patients matching the given search and filter
+        criteria. Default: all ACTIVE patients sorted by registration date descending.
+        **Roles allowed**: RECEPTIONIST, DOCTOR, NURSE, ADMIN
+      parameters:
+        - name: query
+          in: query
+          required: false
+          description: |
+            Case-insensitive partial match across: Patient ID (prefix), first name,
+            last name, phone, email.
+          schema:
+            type: string
+            maxLength: 200
+        - name: status
+          in: query
+          required: false
+          description: Filter by patient status. Default is ACTIVE.
+          schema:
+            type: string
+            enum: [ACTIVE, INACTIVE, ALL]
+            default: ACTIVE
+        - name: gender
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [MALE, FEMALE, OTHER, ALL]
+            default: ALL
+        - name: bloodGroup
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [A_POS, A_NEG, B_POS, B_NEG, AB_POS, AB_NEG, O_POS, O_NEG, UNKNOWN, ALL]
+            default: ALL
+        - name: page
+          in: query
+          required: false
+          description: Zero-based page number.
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: size
+          in: query
+          required: false
+          description: Page size. Fixed at 20 per spec.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 20
+        - name: sort
+          in: query
+          required: false
+          description: Sort field and direction.
+          schema:
+            type: string
+            default: "createdAt,desc"
+      responses:
+        '200':
+          description: Paginated patient list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedPatientSummaryResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── Duplicate phone check ─────────────────────────────────────────────────────
+  /patients/check-phone:
+    get:
+      tags: [Patients]
+      summary: Check for duplicate phone number
+      operationId: checkDuplicatePhone
+      description: |
+        Returns the first existing patient (if any) with the given phone number.
+        Used by the frontend to display the non-blocking duplicate warning on blur.
+        **Roles allowed**: RECEPTIONIST, ADMIN
+      parameters:
+        - name: phone
+          in: query
+          required: true
+          schema:
+            type: string
+            maxLength: 20
+        - name: excludePatientId
+          in: query
+          required: false
+          description: Exclude this Patient ID from the check (for update form).
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Duplicate check result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DuplicatePhoneResponse'
+              examples:
+                noDuplicate:
+                  summary: No duplicate found
+                  value:
+                    duplicate: false
+                duplicateFound:
+                  summary: Duplicate found
+                  value:
+                    duplicate: true
+                    patientId: "P2026001"
+                    patientName: "Jane Smith"
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── US3: View profile / US4: Update ──────────────────────────────────────────
+  /patients/{patientId}:
+    get:
+      tags: [Patients]
+      summary: Get patient profile
+      operationId: getPatient
+      description: |
+        Returns the complete patient record including all demographic, contact,
+        emergency contact, medical background, status, and audit fields.
+        **Roles allowed**: RECEPTIONIST, DOCTOR, NURSE, ADMIN
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      responses:
+        '200':
+          description: Patient profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    put:
+      tags: [Patients]
+      summary: Update patient demographics
+      operationId: updatePatient
+      description: |
+        Updates all editable patient fields. Patient ID and registration date are
+        immutable and must not be included. Optimistic locking via `If-Match` header
+        (entity version). Returns 409 on version conflict.
+        **Roles allowed**: RECEPTIONIST, ADMIN
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+        - name: If-Match
+          in: header
+          required: true
+          description: |
+            Current entity version for optimistic locking. Obtain from the `version`
+            field in the GET /patients/{patientId} response.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientUpdateRequest'
+      responses:
+        '200':
+          description: Patient updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  # ── US5: Status management ────────────────────────────────────────────────────
+  /patients/{patientId}/status:
+    patch:
+      tags: [Patients]
+      summary: Activate or deactivate a patient
+      operationId: changePatientStatus
+      description: |
+        Changes the patient's status between ACTIVE and INACTIVE.
+        Deactivation requires the caller to pass `action: DEACTIVATE` (the UI
+        confirmation dialog is enforced client-side; the API trusts the intent).
+        Activation requires `action: ACTIVATE`.
+        **Roles allowed**: ADMIN only
+      parameters:
+        - $ref: '#/components/parameters/PatientId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientStatusChangeRequest'
+      responses:
+        '200':
+          description: Status changed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientStatusChangeResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: |
+            Status is already in the requested state.
+            e.g., trying to DEACTIVATE an already INACTIVE patient.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ── Health ────────────────────────────────────────────────────────────────────
+  /actuator/health:
+    get:
+      tags: [Health]
+      summary: Overall service health
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /actuator/health/readiness:
+    get:
+      tags: [Health]
+      summary: Readiness probe (DB connected, pool available)
+      operationId: readinessCheck
+      security: []
+      responses:
+        '200':
+          description: Service is ready
+        '503':
+          description: Service is not ready (DB unavailable)
+
+# ─────────────────────────────────────────
+# COMPONENTS
+# ─────────────────────────────────────────
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT issued by the Auth Module. Must contain claims: `userId`, `username`, `role`.
+
+  parameters:
+    PatientId:
+      name: patientId
+      in: path
+      required: true
+      description: Unique patient identifier (e.g., P2026001)
+      schema:
+        type: string
+        pattern: '^P\d{4}\d{3,}$'
+        example: "P2026001"
+
+  schemas:
+
+    # ── Enums ─────────────────────────────────────────────────────────────────
+    Gender:
+      type: string
+      enum: [MALE, FEMALE, OTHER]
+
+    BloodGroup:
+      type: string
+      enum: [A_POS, A_NEG, B_POS, B_NEG, AB_POS, AB_NEG, O_POS, O_NEG, UNKNOWN]
+      description: Display mapping — A_POS=A+, A_NEG=A-, B_POS=B+, etc.
+
+    PatientStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+
+    StatusAction:
+      type: string
+      enum: [ACTIVATE, DEACTIVATE]
+
+    # ── Requests ───────────────────────────────────────────────────────────────
+    PatientRegistrationRequest:
+      type: object
+      required: [firstName, lastName, dateOfBirth, gender, phone]
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: "^[A-Za-z\\-\\'\\s]+$"
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 50
+          pattern: "^[A-Za-z\\-\\'\\s]+$"
+        dateOfBirth:
+          type: string
+          format: date
+          description: ISO-8601 date. Must not be today or future. Not > 150 years ago.
+        gender:
+          $ref: '#/components/schemas/Gender'
+        bloodGroup:
+          $ref: '#/components/schemas/BloodGroup'
+          default: UNKNOWN
+        phone:
+          type: string
+          maxLength: 20
+          description: "Accepted formats: +1-XXX-XXX-XXXX, (XXX) XXX-XXXX, XXX-XXX-XXXX"
+        email:
+          type: string
+          format: email
+          maxLength: 100
+        address:
+          type: string
+          maxLength: 200
+        city:
+          type: string
+          maxLength: 100
+        state:
+          type: string
+          maxLength: 100
+        zipCode:
+          type: string
+          maxLength: 20
+        emergencyContactName:
+          type: string
+          maxLength: 100
+        emergencyContactPhone:
+          type: string
+          maxLength: 20
+        emergencyContactRelationship:
+          type: string
+          maxLength: 50
+        knownAllergies:
+          type: string
+          maxLength: 1000
+        chronicConditions:
+          type: string
+          maxLength: 1000
+
+    PatientUpdateRequest:
+      allOf:
+        - $ref: '#/components/schemas/PatientRegistrationRequest'
+      description: Same fields as registration. patientId and createdAt are immutable.
+
+    PatientStatusChangeRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          $ref: '#/components/schemas/StatusAction'
+
+    # ── Responses ─────────────────────────────────────────────────────────────
+    PatientRegistrationResponse:
+      type: object
+      properties:
+        patientId:
+          type: string
+          example: "P2026001"
+        message:
+          type: string
+          example: "Patient registered successfully. Patient ID: P2026001"
+
+    PatientSummaryResponse:
+      type: object
+      properties:
+        patientId:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        age:
+          type: integer
+          description: Computed from dateOfBirth at request time.
+        gender:
+          $ref: '#/components/schemas/Gender'
+        phone:
+          type: string
+        status:
+          $ref: '#/components/schemas/PatientStatus'
+
+    PatientResponse:
+      type: object
+      properties:
+        patientId:
+          type: string
+        firstName:
+          type: string
+        lastName:
+          type: string
+        dateOfBirth:
+          type: string
+          format: date
+        age:
+          type: integer
+        gender:
+          $ref: '#/components/schemas/Gender'
+        bloodGroup:
+          $ref: '#/components/schemas/BloodGroup'
+        phone:
+          type: string
+        email:
+          type: string
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        state:
+          type: string
+          nullable: true
+        zipCode:
+          type: string
+          nullable: true
+        emergencyContactName:
+          type: string
+          nullable: true
+        emergencyContactPhone:
+          type: string
+          nullable: true
+        emergencyContactRelationship:
+          type: string
+          nullable: true
+        knownAllergies:
+          type: string
+          nullable: true
+        chronicConditions:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/PatientStatus'
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+        version:
+          type: integer
+          description: Use in If-Match header for subsequent PUT requests.
+
+    PagedPatientSummaryResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PatientSummaryResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+
+    DuplicatePhoneResponse:
+      type: object
+      properties:
+        duplicate:
+          type: boolean
+        patientId:
+          type: string
+          nullable: true
+        patientName:
+          type: string
+          nullable: true
+
+    PatientStatusChangeResponse:
+      type: object
+      properties:
+        patientId:
+          type: string
+        status:
+          $ref: '#/components/schemas/PatientStatus'
+        message:
+          type: string
+          example: "Patient Jane Smith has been deactivated."
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN, OUT_OF_SERVICE]
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        traceId:
+          type: string
+        fieldErrors:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            timestamp: "2026-02-19T10:00:00Z"
+            status: 400
+            error: "Bad Request"
+            message: "Validation failed"
+            traceId: "abc123"
+            fieldErrors:
+              - field: "phone"
+                message: "Phone number must match: +1-XXX-XXX-XXXX, (XXX) XXX-XXXX, or XXX-XXX-XXXX."
+
+    Unauthorized:
+      description: No valid authentication token provided
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 401
+            error: "Unauthorized"
+            message: "Authentication required."
+
+    Forbidden:
+      description: Authenticated user does not have the required role
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 403
+            error: "Forbidden"
+            message: "You do not have permission to perform this operation."
+
+    NotFound:
+      description: Patient not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 404
+            error: "Not Found"
+            message: "Patient not found."
+
+    Conflict:
+      description: Optimistic lock conflict — entity was modified by another user
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 409
+            error: "Conflict"
+            message: "Patient record was modified by another user. Please reload and try again."
+
+    ServiceUnavailable:
+      description: Auth service or database is unavailable
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 503
+            error: "Service Unavailable"
+            message: "Authentication service unavailable. Please try again shortly."
