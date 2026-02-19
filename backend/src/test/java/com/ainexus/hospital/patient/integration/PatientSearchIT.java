@@ -102,7 +102,7 @@ class PatientSearchIT extends BaseIntegrationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody().last()).isTrue();
-        assertThat(response.getBody().number()).isEqualTo(1);
+        assertThat(response.getBody().page()).isEqualTo(1);
     }
 
     @Test

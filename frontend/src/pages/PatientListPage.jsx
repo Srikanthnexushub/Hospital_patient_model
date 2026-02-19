@@ -27,7 +27,7 @@ export default function PatientListPage() {
 
   const patients = data?.content ?? []
   const pagination = data
-    ? { number: data.number, size: data.size, totalElements: data.totalElements,
+    ? { number: data.page, size: data.size, totalElements: data.totalElements,
         totalPages: data.totalPages, first: data.first, last: data.last }
     : null
   const hasQuery = !!(query || status !== 'ACTIVE' || gender !== 'ALL' || bloodGroup !== 'ALL')

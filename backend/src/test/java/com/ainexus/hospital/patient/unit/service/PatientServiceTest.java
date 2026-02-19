@@ -277,7 +277,7 @@ class PatientServiceTest {
         PagedResponse<PatientSummaryResponse> result =
                 patientService.searchPatients(null, "ACTIVE", "ALL", "ALL", 1, 20);
 
-        assertThat(result.number()).isEqualTo(1);
+        assertThat(result.page()).isEqualTo(1);
         assertThat(result.totalPages()).isEqualTo(2);
         assertThat(result.last()).isTrue();
     }
