@@ -46,7 +46,7 @@ class PatientUpdateIT extends BaseIntegrationTest {
         return Map.of(
                 "firstName", firstName, "lastName", lastName,
                 "dateOfBirth", "1985-06-15", "gender", "FEMALE",
-                "phone", "555-123-4567", "bloodGroup", "A_POS"
+                "phone", "555-123-4567", "bloodGroup", "A+"
         );
     }
 

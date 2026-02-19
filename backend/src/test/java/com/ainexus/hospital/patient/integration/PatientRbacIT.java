@@ -25,8 +25,9 @@ class PatientRbacIT extends BaseIntegrationTest {
 
     @BeforeEach
     void seedPatient() {
+        // Use year 2025 so the ID generator (which produces P2026xxx) never conflicts
         patientRepository.save(Patient.builder()
-                .patientId("P2026001")
+                .patientId("P2025001")
                 .firstName("Jane").lastName("Smith")
                 .dateOfBirth(LocalDate.of(1985, 6, 15))
                 .gender(Gender.FEMALE).phone("555-123-4567")
@@ -101,7 +102,7 @@ class PatientRbacIT extends BaseIntegrationTest {
     void getPatient_rbacMatrix(String role, int expectedStatus) {
         HttpEntity<Void> request = new HttpEntity<>(headersFor(role));
         ResponseEntity<Map> response = restTemplate.exchange(
-                baseUrl("/api/v1/patients/P2026001"), HttpMethod.GET, request, Map.class);
+                baseUrl("/api/v1/patients/P2025001"), HttpMethod.GET, request, Map.class);
         assertThat(response.getStatusCode().value()).isEqualTo(expectedStatus);
     }
 
@@ -125,13 +126,13 @@ class PatientRbacIT extends BaseIntegrationTest {
         Map<String, Object> body = Map.of(
                 "firstName", "Jane", "lastName", "Smith",
                 "dateOfBirth", "1985-06-15", "gender", "FEMALE",
-                "phone", "555-123-4567", "bloodGroup", "A_POS"
+                "phone", "555-123-4567", "bloodGroup", "A+"
         );
         HttpHeaders headers = headersFor(role);
         headers.set("If-Match", "0");
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         ResponseEntity<Map> response = restTemplate.exchange(
-                baseUrl("/api/v1/patients/P2026001"), HttpMethod.PUT, request, Map.class);
+                baseUrl("/api/v1/patients/P2025001"), HttpMethod.PUT, request, Map.class);
         assertThat(response.getStatusCode().value()).isEqualTo(expectedStatus);
     }
 
@@ -143,7 +144,7 @@ class PatientRbacIT extends BaseIntegrationTest {
         Map<String, Object> body = Map.of("action", "DEACTIVATE");
         HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headersFor(role));
         ResponseEntity<Map> response = restTemplate.exchange(
-                baseUrl("/api/v1/patients/P2026001/status"),
+                baseUrl("/api/v1/patients/P2025001/status"),
                 HttpMethod.PATCH, request, Map.class);
         assertThat(response.getStatusCode().value()).isEqualTo(expectedStatus);
     }

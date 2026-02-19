@@ -25,7 +25,7 @@
         <springdoc.version>2.3.0</springdoc.version>
         <resilience4j.version>2.2.0</resilience4j.version>
         <logstash-logback.version>7.4</logstash-logback.version>
-        <testcontainers.version>1.19.6</testcontainers.version>
+        <testcontainers.version>1.21.3</testcontainers.version>
         <jjwt.version>0.12.5</jjwt.version>
     </properties>
 
@@ -146,6 +146,12 @@
             <version>${testcontainers.version}</version>
             <scope>test</scope>
         </dependency>
+        <!-- Required for PATCH support in TestRestTemplate (HttpURLConnection lacks it) -->
+        <dependency>
+            <groupId>org.apache.httpcomponents.client5</groupId>
+            <artifactId>httpclient5</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
@@ -186,7 +192,7 @@
                 </configuration>
             </plugin>
 
-            <!-- ── Failsafe: Integration tests (mvn verify -Pfailsafe) ───── -->
+            <!-- ── Failsafe: Integration tests (mvn verify) ───────────────── -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -202,6 +208,9 @@
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>
+                    <!-- Required: Testcontainers shaded docker-java defaults to API 1.32;
+                         Docker Desktop 29.x requires minimum API 1.44 -->
+                    <argLine>-Dapi.version=1.44</argLine>
                 </configuration>
             </plugin>
 

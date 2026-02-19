@@ -1,14 +1,13 @@
 package com.ainexus.hospital.patient.validation;
 
-import com.ainexus.hospital.patient.dto.request.PatientRegistrationRequest;
 import jakarta.validation.ConstraintValidator;
 import jakarta.validation.ConstraintValidatorContext;
 
 public class EmergencyContactPairingValidator
-        implements ConstraintValidator<EmergencyContactPairing, PatientRegistrationRequest> {
+        implements ConstraintValidator<EmergencyContactPairing, HasEmergencyContact> {
 
     @Override
-    public boolean isValid(PatientRegistrationRequest request, ConstraintValidatorContext context) {
+    public boolean isValid(HasEmergencyContact request, ConstraintValidatorContext context) {
         if (request == null) return true;
 
         boolean hasName = isPresent(request.emergencyContactName());

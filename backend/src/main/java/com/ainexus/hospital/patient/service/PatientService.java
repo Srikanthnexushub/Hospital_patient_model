@@ -167,6 +167,12 @@ public class PatientService {
         Patient patient = patientRepository.findById(patientId)
                 .orElseThrow(() -> new PatientNotFoundException(patientId));
 
+        // Validate client version matches entity version (optimistic concurrency check)
+        if (!patient.getVersion().equals(version)) {
+            throw new ConflictException(
+                    "Patient record was modified by another user. Please reload and try again.");
+        }
+
         List<String> changedFields = computeChangedFields(patient, request);
 
         try {

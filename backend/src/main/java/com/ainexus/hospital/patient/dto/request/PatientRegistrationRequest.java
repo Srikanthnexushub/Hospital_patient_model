@@ -3,6 +3,7 @@ package com.ainexus.hospital.patient.dto.request;
 import com.ainexus.hospital.patient.entity.BloodGroup;
 import com.ainexus.hospital.patient.entity.Gender;
 import com.ainexus.hospital.patient.validation.EmergencyContactPairing;
+import com.ainexus.hospital.patient.validation.HasEmergencyContact;
 import com.ainexus.hospital.patient.validation.PhoneNumber;
 import com.ainexus.hospital.patient.validation.ValidDateOfBirth;
 import jakarta.validation.constraints.*;
@@ -68,4 +69,4 @@ public record PatientRegistrationRequest(
 
         @Size(max = 1000, message = "Chronic conditions must not exceed 1000 characters.")
         String chronicConditions
-) {}
+) implements HasEmergencyContact {}

@@ -1,6 +1,5 @@
 package com.ainexus.hospital.patient.security;
 
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
@@ -12,11 +11,15 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.UUID;
 
 @Component
@@ -56,14 +59,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             AuthContext.Holder.set(ctx);
             MDC.put("userId", ctx.getUserId());
 
+            // Populate Spring Security context so .anyRequest().authenticated() passes
+            UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                    ctx.getUserId(), null,
+                    List.of(new SimpleGrantedAuthority("ROLE_" + ctx.getRole())));
+            SecurityContextHolder.getContext().setAuthentication(authentication);
+
             filterChain.doFilter(request, response);
         } finally {
             AuthContext.Holder.clear();
+            SecurityContextHolder.clearContext();
             MDC.clear();
         }
     }
 
-    @CircuitBreaker(name = "authModule", fallbackMethod = "authFallback")
     private AuthContext parseToken(String token) {
         try {
             byte[] keyBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
@@ -82,11 +91,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         } catch (JwtException e) {
             return null;
         }
-    }
-
-    private AuthContext authFallback(String token, Exception ex) {
-        // Circuit breaker is OPEN — Auth Module unavailable
-        return null; // Will result in 401; caller handles 503 via flag
     }
 
     private void sendUnauthorized(HttpServletResponse response, String traceId) throws IOException {
