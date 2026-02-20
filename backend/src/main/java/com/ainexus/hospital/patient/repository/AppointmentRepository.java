@@ -7,6 +7,7 @@ import jakarta.persistence.LockModeType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -17,7 +18,8 @@ import java.time.LocalTime;
 import java.util.List;
 
 @Repository
-public interface AppointmentRepository extends JpaRepository<Appointment, String> {
+public interface AppointmentRepository extends JpaRepository<Appointment, String>,
+        JpaSpecificationExecutor<Appointment> {
 
     /**
      * Conflict detection: finds appointments for the same doctor on the same date
@@ -57,32 +59,6 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     List<Appointment> findByDoctorIdAndAppointmentDate(
             @Param("doctorId") String doctorId,
             @Param("date") LocalDate date
-    );
-
-    /**
-     * Flexible search with optional filters. All parameters are optional (nullable).
-     * DOCTOR role passes doctorId=ctx.userId to restrict to own appointments.
-     */
-    @Query("""
-            SELECT a FROM Appointment a
-            WHERE (:doctorId IS NULL OR a.doctorId = :doctorId)
-              AND (:patientId IS NULL OR a.patientId = :patientId)
-              AND (:date IS NULL OR a.appointmentDate = :date)
-              AND (:dateFrom IS NULL OR a.appointmentDate >= :dateFrom)
-              AND (:dateTo IS NULL OR a.appointmentDate <= :dateTo)
-              AND (:status IS NULL OR a.status = :status)
-              AND (:type IS NULL OR a.type = :type)
-            ORDER BY a.appointmentDate ASC, a.startTime ASC
-            """)
-    Page<Appointment> searchAppointments(
-            @Param("doctorId") String doctorId,
-            @Param("patientId") String patientId,
-            @Param("date") LocalDate date,
-            @Param("dateFrom") LocalDate dateFrom,
-            @Param("dateTo") LocalDate dateTo,
-            @Param("status") AppointmentStatus status,
-            @Param("type") AppointmentType type,
-            Pageable pageable
     );
 
     /**

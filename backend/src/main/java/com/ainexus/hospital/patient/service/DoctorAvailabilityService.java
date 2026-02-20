@@ -8,6 +8,7 @@ import com.ainexus.hospital.patient.entity.AppointmentStatus;
 import com.ainexus.hospital.patient.exception.ResourceNotFoundException;
 import com.ainexus.hospital.patient.mapper.AppointmentMapper;
 import com.ainexus.hospital.patient.repository.AppointmentRepository;
+import com.ainexus.hospital.patient.repository.AppointmentSpecifications;
 import com.ainexus.hospital.patient.repository.HospitalUserRepository;
 import com.ainexus.hospital.patient.repository.PatientRepository;
 import com.ainexus.hospital.patient.entity.HospitalUser;
@@ -17,6 +18,7 @@ import com.ainexus.hospital.patient.exception.ForbiddenException;
 import com.ainexus.hospital.patient.dto.response.PagedResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -109,9 +111,11 @@ public class DoctorAvailabilityService {
         hospitalUserRepository.findById(doctorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Doctor not found: " + doctorId));
 
-        Page<Appointment> resultPage = appointmentRepository.searchAppointments(
-                doctorId, null, date, null, null, null, null,
-                PageRequest.of(page, size));
+        PageRequest pageable = PageRequest.of(page, size,
+                Sort.by("appointmentDate").ascending().and(Sort.by("startTime").ascending()));
+        Page<Appointment> resultPage = appointmentRepository.findAll(
+                AppointmentSpecifications.search(doctorId, null, date, null, null, null, null),
+                pageable);
 
         List<AppointmentSummaryResponse> content = resultPage.getContent().stream()
                 .map(a -> {

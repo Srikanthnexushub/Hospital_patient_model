@@ -13,6 +13,7 @@ import com.ainexus.hospital.patient.exception.ResourceNotFoundException;
 import com.ainexus.hospital.patient.exception.VersionConflictException;
 import com.ainexus.hospital.patient.mapper.AppointmentMapper;
 import com.ainexus.hospital.patient.repository.AppointmentRepository;
+import com.ainexus.hospital.patient.repository.AppointmentSpecifications;
 import com.ainexus.hospital.patient.repository.HospitalUserRepository;
 import com.ainexus.hospital.patient.repository.PatientRepository;
 import com.ainexus.hospital.patient.security.AuthContext;
@@ -22,6 +23,7 @@ import jakarta.persistence.EntityManager;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -177,9 +179,11 @@ public class AppointmentService {
             effectiveDoctorId = ctx.getUserId();
         }
 
-        Page<Appointment> resultPage = appointmentRepository.searchAppointments(
-                effectiveDoctorId, patientId, date, dateFrom, dateTo, status, type,
-                PageRequest.of(page, size));
+        Pageable pageable = PageRequest.of(page, size,
+                Sort.by("appointmentDate").ascending().and(Sort.by("startTime").ascending()));
+        Page<Appointment> resultPage = appointmentRepository.findAll(
+                AppointmentSpecifications.search(effectiveDoctorId, patientId, date, dateFrom, dateTo, status, type),
+                pageable);
 
         List<AppointmentSummaryResponse> content = resultPage.getContent().stream()
                 .map(a -> mapper.toSummary(a, resolvePatientName(a.getPatientId()), resolveDoctorName(a.getDoctorId())))

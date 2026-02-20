@@ -215,10 +215,7 @@ class DoctorAvailabilityServiceTest {
 
         when(hospitalUserRepository.findById(DOCTOR_ID))
                 .thenReturn(Optional.of(doctorUser(DOCTOR_ID, "dr.house")));
-        when(appointmentRepository.searchAppointments(
-                eq(DOCTOR_ID), isNull(), eq(TEST_DATE),
-                isNull(), isNull(), isNull(), isNull(),
-                any(Pageable.class)))
+        when(appointmentRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(Collections.emptyList()));
 
         var result = availabilityService.getSchedule(DOCTOR_ID, TEST_DATE, 0, 20);
