@@ -8,6 +8,10 @@ import AppointmentListPage from './pages/AppointmentListPage.jsx'
 import AppointmentBookingPage from './pages/AppointmentBookingPage.jsx'
 import AppointmentDetailPage from './pages/AppointmentDetailPage.jsx'
 import DoctorAvailabilityPage from './pages/DoctorAvailabilityPage.jsx'
+import InvoiceListPage from './pages/InvoiceListPage.jsx'
+import InvoiceCreatePage from './pages/InvoiceCreatePage.jsx'
+import InvoiceDetailPage from './pages/InvoiceDetailPage.jsx'
+import FinancialReportPage from './pages/FinancialReportPage.jsx'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth()
@@ -41,6 +45,12 @@ function NavBar() {
         <span className="font-bold text-white mr-2">HMS</span>
         <NavLink to="/" end className={linkCls}>Patients</NavLink>
         <NavLink to="/appointments" className={linkCls}>Appointments</NavLink>
+        {role !== 'NURSE' && (
+          <NavLink to="/invoices" className={linkCls}>Billing</NavLink>
+        )}
+        {role === 'ADMIN' && (
+          <NavLink to="/reports/financial" className={linkCls}>Reports</NavLink>
+        )}
         <div className="ml-auto flex items-center gap-3">
           <span className="text-xs text-blue-200">{role}</span>
           <button onClick={handleLogout} className="text-xs text-blue-200 hover:text-white">
@@ -92,6 +102,27 @@ export default function App() {
                   } />
                   <Route path="/appointments/:appointmentId" element={<AppointmentDetailPage />} />
                   <Route path="/doctors/:doctorId/availability" element={<DoctorAvailabilityPage />} />
+                  {/* Billing */}
+                  <Route path="/invoices" element={
+                    <RoleRoute allowedRoles={['RECEPTIONIST', 'ADMIN', 'DOCTOR']}>
+                      <InvoiceListPage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/invoices/new" element={
+                    <RoleRoute allowedRoles={['RECEPTIONIST', 'ADMIN']}>
+                      <InvoiceCreatePage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/invoices/:invoiceId" element={
+                    <RoleRoute allowedRoles={['RECEPTIONIST', 'ADMIN', 'DOCTOR']}>
+                      <InvoiceDetailPage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/reports/financial" element={
+                    <RoleRoute allowedRoles={['ADMIN']}>
+                      <FinancialReportPage />
+                    </RoleRoute>
+                  } />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </>

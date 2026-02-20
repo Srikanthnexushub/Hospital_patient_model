@@ -76,7 +76,7 @@ bash scripts/generate-certs.sh
 5. **RBAC** — server-side role check on EVERY endpoint; client-side checks are cosmetic
 
 ## Recent Changes
-- `004-billing-module`: Billing & Invoicing Module — full invoice lifecycle (US1–US5)
+- `004-billing-module`: Billing & Invoicing Module — full invoice lifecycle (US1–US5) + full frontend UI
   - **invoiceId format**: `INV` + year + 6-digit zero-padded seq (e.g. `INV2026000001`); expands beyond 999999
   - **Status lifecycle**: DRAFT → ISSUED → PARTIALLY_PAID → PAID; CANCELLED (from DRAFT/ISSUED); WRITTEN_OFF (from ISSUED/PARTIALLY_PAID)
   - **Monetary amounts**: `NUMERIC(12,2)` — never floating point; `@Value("${billing.tax-rate:0.00}") BigDecimal taxRate` configurable
@@ -86,6 +86,7 @@ bash scripts/generate-certs.sh
   - **Financial report**: `GET /api/v1/reports/financial?dateFrom=&dateTo=` — ADMIN only; date range filters on `CAST(created_at AS date)`
   - **Flyway migrations**: V12 (invoice_id_sequences), V13 (invoices), V14 (invoice_line_items), V15 (invoice_payments), V16 (invoice_audit_log)
   - **Test results**: 108 unit + 191 integration = 299 total, 0 failures
+  - **Frontend**: `billingApi.js`, `useInvoices.js`, `InvoiceListPage`, `InvoiceCreatePage`, `InvoiceDetailPage`, `FinancialReportPage`; "Generate Invoice" button on COMPLETED appointments; Billing nav (non-NURSE); Reports nav (ADMIN)
 - `003-appointment-scheduling`: Appointment Scheduling Module — full appointment lifecycle (US1–US7)
   - **appointmentId format**: `APT` + year + 4-digit zero-padded seq (e.g. `APT20260001`)
   - **Status machine**: SCHEDULED → CONFIRMED → CHECKED_IN → IN_PROGRESS → COMPLETED; CANCELLED/NO_SHOW are terminal; transitions enforced in `AppointmentStatusService`

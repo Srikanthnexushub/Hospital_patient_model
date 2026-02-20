@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useParams, useLocation, Link } from 'react-router-dom'
+import { useParams, useLocation, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.js'
 import { useAppointment, useChangeAppointmentStatus, useClinicalNotes, useAddClinicalNotes } from '../hooks/useAppointments.js'
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx'
@@ -196,6 +196,7 @@ export default function AppointmentDetailPage() {
   const { appointmentId } = useParams()
   const { role } = useAuth()
   const location = useLocation()
+  const navigate = useNavigate()
   const successMessage = location.state?.message
 
   const { data: appt, isLoading, isError, error, refetch } = useAppointment(appointmentId)
@@ -257,6 +258,18 @@ export default function AppointmentDetailPage() {
         </dl>
 
         <ActionButtons status={appt.status} role={role} onAction={handleAction} />
+
+        {/* Generate Invoice shortcut — RECEPTIONIST / ADMIN when appointment is COMPLETED */}
+        {(role === 'RECEPTIONIST' || role === 'ADMIN') && appt.status === 'COMPLETED' && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <button
+              onClick={() => navigate(`/invoices/new?appointmentId=${appointmentId}`)}
+              className="px-3 py-1.5 rounded text-sm font-medium bg-green-600 hover:bg-green-700 text-white"
+            >
+              Generate Invoice
+            </button>
+          </div>
+        )}
 
         <ClinicalNotesSection appointmentId={appointmentId} role={role} status={appt.status} />
       </div>
