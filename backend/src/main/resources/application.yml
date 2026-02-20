@@ -96,3 +96,13 @@ springdoc:
 app:
   jwt:
     secret: ${JWT_SECRET:dev-secret-key-must-be-at-least-32-chars-long}
+  auth:
+    admin:
+      username: ${ADMIN_USERNAME:admin}
+      initial-password: ${ADMIN_INITIAL_PASSWORD}
+    jwt:
+      expiration-hours: ${APP_JWT_EXPIRATION_HOURS:8}
+      refresh-expiration-hours: ${APP_JWT_REFRESH_EXPIRATION_HOURS:24}
+    lockout:
+      max-attempts: ${AUTH_LOCKOUT_MAX_ATTEMPTS:5}
+      duration-minutes: ${AUTH_LOCKOUT_DURATION_MINUTES:15}

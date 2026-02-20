@@ -4,6 +4,16 @@
 app:
   jwt:
     secret: "test-secret-key-must-be-at-least-32-chars"
+  auth:
+    admin:
+      username: admin
+      initial-password: TestAdmin@123
+    jwt:
+      expiration-hours: 8
+      refresh-expiration-hours: 24
+    lockout:
+      max-attempts: 5
+      duration-minutes: 15
 
 # Suppress verbose startup logs in tests
 logging:
