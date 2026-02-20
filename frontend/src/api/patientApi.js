@@ -20,7 +20,11 @@ api.interceptors.request.use(config => {
 api.interceptors.response.use(
   response => response,
   error => {
-    // Let callers handle error details (status, message, fieldErrors)
+    // On 401, the stored token is invalid/expired — clear it and force login
+    if (error?.response?.status === 401) {
+      sessionStorage.removeItem('jwt_token')
+      window.location.replace('/login')
+    }
     return Promise.reject(error)
   }
 )

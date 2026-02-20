@@ -14,6 +14,14 @@ export function useAuth() {
     // JWT is three base64url-encoded segments: header.payload.signature
     const payloadB64 = token.split('.')[1]
     const payload = JSON.parse(atob(payloadB64.replace(/-/g, '+').replace(/_/g, '/')))
+
+    // Reject expired tokens immediately — do not wait for a 401 from the server
+    const nowSec = Math.floor(Date.now() / 1000)
+    if (payload.exp && payload.exp < nowSec) {
+      sessionStorage.removeItem('jwt_token')
+      return { username: null, role: null, isAuthenticated: false, token: null }
+    }
+
     return {
       username: payload.username || payload.sub || null,
       role: payload.role || null,
