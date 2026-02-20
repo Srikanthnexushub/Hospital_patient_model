@@ -1,5 +1,6 @@
 package com.ainexus.hospital.patient.config;
 
+import com.ainexus.hospital.patient.security.BlacklistCheckFilter;
 import com.ainexus.hospital.patient.security.JwtAuthFilter;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -18,9 +19,12 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
+    private final BlacklistCheckFilter blacklistCheckFilter;
 
-    public SecurityConfig(JwtAuthFilter jwtAuthFilter) {
+    public SecurityConfig(JwtAuthFilter jwtAuthFilter,
+                          BlacklistCheckFilter blacklistCheckFilter) {
         this.jwtAuthFilter = jwtAuthFilter;
+        this.blacklistCheckFilter = blacklistCheckFilter;
     }
 
     @Bean
@@ -34,7 +38,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/actuator/health", "/actuator/health/**",
                                  "/actuator/info", "/actuator/prometheus",
-                                 "/api/v1/auth/**",          // dev login endpoint
+                                 "/api/v1/auth/login",       // login is public
                                  "/swagger-ui/**", "/api-docs/**", "/swagger-ui.html").permitAll()
                 .anyRequest().authenticated()
             )
@@ -44,7 +48,9 @@ public class SecurityConfig {
                 .authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED))
             )
 
-            // JWT filter before Spring Security's default username/password filter
+            // Both filters run before UsernamePasswordAuthenticationFilter.
+            // Insertion order determines execution: blacklistCheckFilter first, then jwtAuthFilter (AD-002).
+            .addFilterBefore(blacklistCheckFilter, UsernamePasswordAuthenticationFilter.class)
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
@@ -58,6 +64,19 @@ public class SecurityConfig {
     @Bean
     public FilterRegistrationBean<JwtAuthFilter> jwtFilterRegistration(JwtAuthFilter filter) {
         FilterRegistrationBean<JwtAuthFilter> registration = new FilterRegistrationBean<>(filter);
+        registration.setEnabled(false);
+        return registration;
+    }
+
+    /**
+     * Prevent BlacklistCheckFilter from being auto-registered as a standalone servlet filter.
+     * It runs only inside the Security filter chain (before JwtAuthFilter).
+     */
+    @Bean
+    public FilterRegistrationBean<BlacklistCheckFilter> blacklistFilterRegistration(
+            BlacklistCheckFilter filter) {
+        FilterRegistrationBean<BlacklistCheckFilter> registration =
+                new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
         return registration;
     }

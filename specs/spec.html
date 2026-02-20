@@ -1,0 +1,1724 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hospital Management System — Patient Module Specification</title>
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      font-size: 15px;
+      line-height: 1.65;
+      color: #1e293b;
+      background: #f8fafc;
+    }
+
+    /* ─── Layout ────────────────────────────────────────────────── */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ─── Sidebar ───────────────────────────────────────────────── */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: #0f172a;
+      color: #94a3b8;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 0 0 32px;
+      flex-shrink: 0;
+    }
+    .sidebar-brand {
+      padding: 24px 20px 20px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 8px;
+    }
+    .sidebar-brand .logo {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #38bdf8;
+    }
+    .sidebar-brand .module {
+      font-size: 11px;
+      color: #64748b;
+      margin-top: 4px;
+    }
+    .sidebar-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      background: #14532d;
+      color: #86efac;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 99px;
+      margin-top: 8px;
+      letter-spacing: .04em;
+    }
+    .nav-group { padding: 8px 0; }
+    .nav-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #475569;
+      padding: 10px 20px 4px;
+    }
+    .nav-link {
+      display: block;
+      padding: 7px 20px 7px 28px;
+      font-size: 13px;
+      color: #94a3b8;
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      transition: all .15s;
+    }
+    .nav-link:hover { color: #e2e8f0; background: #1e293b; border-left-color: #38bdf8; }
+    .nav-link.active { color: #38bdf8; border-left-color: #38bdf8; background: #1e293b; }
+    .nav-sub {
+      padding: 5px 20px 5px 40px;
+      font-size: 12px;
+      color: #64748b;
+      text-decoration: none;
+      display: block;
+      transition: color .15s;
+    }
+    .nav-sub:hover { color: #94a3b8; }
+
+    /* ─── Main Content ──────────────────────────────────────────── */
+    .main {
+      flex: 1;
+      min-width: 0;
+      padding: 48px 56px;
+      max-width: 1100px;
+    }
+
+    /* ─── Sections ──────────────────────────────────────────────── */
+    .section { margin-bottom: 72px; }
+    .section-anchor { scroll-margin-top: 24px; }
+
+    /* ─── Typography ────────────────────────────────────────────── */
+    h1 {
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f172a;
+      letter-spacing: -.02em;
+      margin-bottom: 8px;
+    }
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 10px;
+      margin-bottom: 24px;
+      margin-top: 8px;
+    }
+    h3 {
+      font-size: 16px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 12px;
+      margin-top: 28px;
+    }
+    h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 8px;
+      margin-top: 20px;
+    }
+    p { margin-bottom: 12px; color: #334155; }
+    code {
+      font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+      font-size: 12.5px;
+      background: #e2e8f0;
+      color: #0f172a;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      border-radius: 10px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      margin: 16px 0;
+    }
+    pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+
+    /* ─── Hero ──────────────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+      border-radius: 16px;
+      padding: 40px 44px;
+      color: #fff;
+      margin-bottom: 48px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      right: -60px; top: -60px;
+      width: 280px; height: 280px;
+      background: radial-gradient(circle, rgba(56,189,248,.15) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero h1 { color: #fff; font-size: 28px; }
+    .hero .subtitle { color: #94a3b8; font-size: 15px; margin-top: 6px; margin-bottom: 24px; }
+    .hero-meta { display: flex; gap: 32px; flex-wrap: wrap; }
+    .hero-meta-item { }
+    .hero-meta-item .label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .08em; color: #64748b; }
+    .hero-meta-item .value { font-size: 14px; color: #e2e8f0; font-weight: 600; margin-top: 2px; }
+
+    /* ─── Badges ────────────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center;
+      padding: 3px 10px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .04em;
+    }
+    .badge-green  { background: #dcfce7; color: #15803d; }
+    .badge-blue   { background: #dbeafe; color: #1d4ed8; }
+    .badge-orange { background: #ffedd5; color: #c2410c; }
+    .badge-purple { background: #f3e8ff; color: #7e22ce; }
+    .badge-gray   { background: #f1f5f9; color: #475569; }
+    .badge-red    { background: #fee2e2; color: #dc2626; }
+    .badge-teal   { background: #ccfbf1; color: #0f766e; }
+
+    /* ─── Cards ─────────────────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 20px 24px;
+    }
+    .stat-card .stat-label { font-size: 12px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 800; color: #0f172a; margin: 4px 0; }
+    .stat-card .stat-sub { font-size: 12px; color: #94a3b8; }
+
+    /* ─── Tables ─────────────────────────────────────────────────── */
+    .table-wrap { overflow-x: auto; margin-bottom: 20px; border-radius: 10px; border: 1px solid #e2e8f0; }
+    table { width: 100%; border-collapse: collapse; background: #fff; font-size: 13.5px; }
+    thead th {
+      background: #f8fafc;
+      padding: 11px 16px;
+      text-align: left;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: #64748b;
+      border-bottom: 1px solid #e2e8f0;
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 11px 16px;
+      border-bottom: 1px solid #f1f5f9;
+      color: #334155;
+      vertical-align: top;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: #f8fafc; }
+    td code { font-size: 12px; }
+
+    /* ─── Check marks ───────────────────────────────────────────── */
+    .tick { color: #16a34a; font-weight: 700; }
+    .cross { color: #dc2626; font-weight: 700; }
+
+    /* ─── Story cards ───────────────────────────────────────────── */
+    .story-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .story-header {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 20px 24px;
+      border-bottom: 1px solid #f1f5f9;
+    }
+    .story-priority {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 800;
+      flex-shrink: 0;
+    }
+    .p1 { background: #fee2e2; color: #dc2626; }
+    .p2 { background: #ffedd5; color: #ea580c; }
+    .p3 { background: #fef9c3; color: #ca8a04; }
+    .p4 { background: #d1fae5; color: #059669; }
+    .p5 { background: #dbeafe; color: #2563eb; }
+    .story-title { font-size: 16px; font-weight: 700; color: #0f172a; }
+    .story-desc  { font-size: 13px; color: #64748b; margin-top: 2px; }
+    .story-body  { padding: 20px 24px; }
+    .scenario-list { list-style: none; counter-reset: scenario; }
+    .scenario-list li {
+      counter-increment: scenario;
+      padding: 8px 0 8px 36px;
+      border-bottom: 1px solid #f8fafc;
+      font-size: 13.5px;
+      color: #334155;
+      position: relative;
+    }
+    .scenario-list li:last-child { border-bottom: none; }
+    .scenario-list li::before {
+      content: counter(scenario);
+      position: absolute;
+      left: 0;
+      width: 24px;
+      height: 24px;
+      background: #f1f5f9;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #475569;
+      top: 9px;
+    }
+    .scenario-keyword { font-weight: 700; }
+    .given  { color: #7e22ce; }
+    .when   { color: #0369a1; }
+    .then   { color: #065f46; }
+
+    /* ─── Phase chips ───────────────────────────────────────────── */
+    .phase-list { display: flex; flex-direction: column; gap: 12px; }
+    .phase-item {
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+      padding: 16px 20px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    .phase-num {
+      width: 36px;
+      height: 36px;
+      background: #0f172a;
+      color: #38bdf8;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .phase-content .phase-title { font-weight: 700; font-size: 14px; color: #0f172a; }
+    .phase-content .phase-desc  { font-size: 13px; color: #64748b; margin-top: 3px; }
+    .phase-content .phase-tasks { font-size: 12px; color: #94a3b8; margin-top: 4px; }
+
+    /* ─── Callouts ──────────────────────────────────────────────── */
+    .callout {
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      font-size: 14px;
+      border-left: 4px solid;
+    }
+    .callout-info    { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
+    .callout-warn    { background: #fffbeb; border-color: #f59e0b; color: #92400e; }
+    .callout-danger  { background: #fef2f2; border-color: #ef4444; color: #991b1b; }
+    .callout-success { background: #f0fdf4; border-color: #22c55e; color: #15803d; }
+    .callout strong  { font-weight: 700; }
+
+    /* ─── Tech stack grid ───────────────────────────────────────── */
+    .tech-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .tech-item {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .tech-layer { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: #94a3b8; margin-bottom: 6px; }
+    .tech-items { font-size: 12.5px; color: #334155; line-height: 1.8; }
+
+    /* ─── State machine ─────────────────────────────────────────── */
+    .state-machine {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 32px;
+      background: #f8fafc;
+      border-radius: 12px;
+      margin: 16px 0;
+      flex-wrap: wrap;
+    }
+    .state-box {
+      padding: 14px 28px;
+      border-radius: 10px;
+      font-weight: 700;
+      font-size: 15px;
+      border: 2px solid;
+      text-align: center;
+    }
+    .state-active   { background: #dcfce7; border-color: #16a34a; color: #15803d; }
+    .state-inactive { background: #fee2e2; border-color: #dc2626; color: #dc2626; }
+    .state-arrow { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+    .state-arrow .arrow-line { font-size: 22px; color: #94a3b8; line-height: 1; }
+    .state-arrow .arrow-label { font-size: 11px; color: #64748b; text-align: center; font-weight: 600; white-space: nowrap; }
+
+    /* ─── API endpoint pills ────────────────────────────────────── */
+    .endpoint-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+    .endpoint {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 18px;
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+    }
+    .method {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      white-space: nowrap;
+      min-width: 58px;
+      justify-content: center;
+      margin-top: 1px;
+    }
+    .method-post  { background: #d1fae5; color: #065f46; }
+    .method-get   { background: #dbeafe; color: #1e40af; }
+    .method-put   { background: #fef9c3; color: #854d0e; }
+    .method-patch { background: #f3e8ff; color: #6b21a8; }
+    .endpoint-path { font-family: 'SF Mono', Consolas, monospace; font-size: 13px; font-weight: 600; color: #0f172a; }
+    .endpoint-desc { font-size: 12.5px; color: #64748b; margin-top: 2px; }
+    .endpoint-meta { font-size: 11px; color: #94a3b8; margin-top: 4px; }
+
+    /* ─── Role matrix pills ─────────────────────────────────────── */
+    .matrix-yes { color: #16a34a; font-weight: 800; font-size: 16px; }
+    .matrix-no  { color: #dc2626; font-weight: 800; font-size: 16px; }
+
+    /* ─── Print / misc ──────────────────────────────────────────── */
+    .divider { height: 1px; background: #e2e8f0; margin: 40px 0; }
+    ul.bullet { padding-left: 20px; margin-bottom: 12px; }
+    ul.bullet li { margin-bottom: 4px; font-size: 14px; color: #334155; }
+    .text-muted { color: #94a3b8; font-size: 13px; }
+    .mt8 { margin-top: 8px; }
+
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { padding: 32px 24px; }
+    }
+    @media print {
+      .sidebar { display: none; }
+      .main { padding: 0; }
+      .hero { background: #0f172a !important; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ═══════════════════════════════════════════════════════════ SIDEBAR -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo">Hospital HMS</div>
+      <div class="module">Patient Module Spec</div>
+      <div class="sidebar-badge">✓ 106/106 Complete</div>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Overview</div>
+      <a class="nav-link" href="#overview">Overview</a>
+      <a class="nav-link" href="#tech-stack">Tech Stack</a>
+      <a class="nav-link" href="#scope">Scope</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Access Control</div>
+      <a class="nav-link" href="#roles">Roles &amp; Permissions</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">User Stories</div>
+      <a class="nav-link" href="#us1">US1 — Register</a>
+      <a class="nav-link" href="#us2">US2 — Search</a>
+      <a class="nav-link" href="#us3">US3 — Profile</a>
+      <a class="nav-link" href="#us4">US4 — Update</a>
+      <a class="nav-link" href="#us5">US5 — Status</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Data</div>
+      <a class="nav-link" href="#data-model">Data Model</a>
+      <a class="nav-sub" href="#entity-patient">Patient Entity</a>
+      <a class="nav-sub" href="#entity-sequence">ID Sequence</a>
+      <a class="nav-sub" href="#entity-audit">Audit Log</a>
+      <a class="nav-link" href="#dtos">DTOs</a>
+      <a class="nav-link" href="#validation">Validation Rules</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">API</div>
+      <a class="nav-link" href="#api">Endpoints</a>
+      <a class="nav-link" href="#state-machine">State Machine</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Non-Functional</div>
+      <a class="nav-link" href="#nfr-sla">SLA &amp; Availability</a>
+      <a class="nav-link" href="#nfr-perf">Performance</a>
+      <a class="nav-link" href="#nfr-infra">Infrastructure</a>
+      <a class="nav-link" href="#nfr-db">Database</a>
+      <a class="nav-link" href="#nfr-security">Security &amp; HIPAA</a>
+      <a class="nav-link" href="#nfr-resilience">Resilience</a>
+      <a class="nav-link" href="#nfr-obs">Observability</a>
+    </div>
+
+    <div class="nav-group">
+      <div class="nav-label">Implementation</div>
+      <a class="nav-link" href="#phases">Task Phases</a>
+      <a class="nav-link" href="#quickstart">Quickstart</a>
+      <a class="nav-link" href="#success">Success Criteria</a>
+      <a class="nav-link" href="#future">Future Modules</a>
+    </div>
+  </nav>
+
+  <!-- ═══════════════════════════════════════════════════════════ MAIN -->
+  <main class="main">
+
+    <!-- ─── HERO ──────────────────────────────────────────────── -->
+    <div class="hero">
+      <h1>Hospital Management System</h1>
+      <div class="subtitle">Patient Module — Full Feature Specification &amp; Implementation Reference</div>
+      <div class="hero-meta">
+        <div class="hero-meta-item">
+          <div class="label">Module</div>
+          <div class="value">001-patient-module</div>
+        </div>
+        <div class="hero-meta-item">
+          <div class="label">Version</div>
+          <div class="value">3.0.0</div>
+        </div>
+        <div class="hero-meta-item">
+          <div class="label">Status</div>
+          <div class="value" style="color:#86efac;">Frozen · Merged to main</div>
+        </div>
+        <div class="hero-meta-item">
+          <div class="label">Date</div>
+          <div class="value">2026-02-19</div>
+        </div>
+        <div class="hero-meta-item">
+          <div class="label">Tests</div>
+          <div class="value">108 passing (46 unit + 62 integration)</div>
+        </div>
+        <div class="hero-meta-item">
+          <div class="label">Company</div>
+          <div class="value">Ai Nexus</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── STATS ─────────────────────────────────────────────── -->
+    <div class="card-grid">
+      <div class="stat-card">
+        <div class="stat-label">Tasks Complete</div>
+        <div class="stat-value">106</div>
+        <div class="stat-sub">All 8 phases done</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">User Stories</div>
+        <div class="stat-value">5</div>
+        <div class="stat-sub">P1 → P5, all passing</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">API Endpoints</div>
+        <div class="stat-value">6</div>
+        <div class="stat-sub">REST — JSON over HTTPS</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Peak Throughput</div>
+        <div class="stat-value">&gt;100k</div>
+        <div class="stat-sub">Requests per hour</div>
+      </div>
+    </div>
+
+    <!-- ─── OVERVIEW ──────────────────────────────────────────── -->
+    <div id="overview" class="section section-anchor">
+      <h2>Overview</h2>
+      <p>
+        The <strong>Patient Module</strong> is the foundational component of the Hospital Management System.
+        It enables hospital staff to register new patients, search and retrieve patient records,
+        view complete patient profiles, update demographic information, and manage patient
+        active/inactive status.
+      </p>
+      <p>
+        All patient data is classified as <strong>Protected Health Information (PHI)</strong> and is handled
+        with strict access controls and full audit traceability. This module is a
+        <strong>hard dependency</strong> for all other hospital modules (Appointments, EMR, Billing).
+        Authentication and role management are delegated to the Auth Module.
+      </p>
+
+      <div class="callout callout-info">
+        <strong>Single-command deployment:</strong> The entire system is runnable locally using
+        <code>docker compose up --build</code> — no manual setup beyond Docker installation required.
+      </div>
+    </div>
+
+    <!-- ─── TECH STACK ────────────────────────────────────────── -->
+    <div id="tech-stack" class="section section-anchor">
+      <h2>Technology Stack</h2>
+      <div class="tech-grid">
+        <div class="tech-item">
+          <div class="tech-layer">Backend</div>
+          <div class="tech-items">Java 17<br>Spring Boot 3.2.x<br>Spring Data JPA<br>Spring Security<br>Resilience4j<br>HikariCP<br>Flyway<br>MapStruct · Lombok</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-layer">Frontend</div>
+          <div class="tech-items">React 18.x<br>Vite<br>React Router v6<br>TanStack Query v5<br>React Hook Form<br>Zod<br>Tailwind CSS<br>Axios</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-layer">Database</div>
+          <div class="tech-items">PostgreSQL 15<br>Flyway migrations<br>Pessimistic locking<br>GIN full-text index<br>B-Tree indexes ×8</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-layer">Infrastructure</div>
+          <div class="tech-items">Docker Compose v2<br>Nginx 1.25<br>TLS 1.2/1.3 (HTTPS)<br>PgAdmin (dev)</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-layer">Testing</div>
+          <div class="tech-items">JUnit 5 · Mockito<br>Testcontainers<br>Spring Boot Test<br>Vitest<br>React Testing Library</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-layer">Observability</div>
+          <div class="tech-items">Micrometer<br>Spring Actuator<br>Logback JSON<br>MDC tracing<br>Prometheus metrics</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── SCOPE ──────────────────────────────────────────────── -->
+    <div id="scope" class="section section-anchor">
+      <h2>Scope</h2>
+      <h3>In Scope</h3>
+      <ul class="bullet">
+        <li>Patient registration (create new patient records)</li>
+        <li>Patient search and multi-criteria filtering</li>
+        <li>Patient profile view</li>
+        <li>Patient demographic update</li>
+        <li>Patient status management (activate / deactivate — soft delete only)</li>
+        <li>Local Docker-based deployment (backend, frontend, database, cache, proxy)</li>
+        <li>PostgreSQL as the primary data store</li>
+        <li>Enterprise observability (health checks, metrics, structured logging)</li>
+      </ul>
+
+      <h3>Out of Scope (Future Modules)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Capability</th><th>Owning Module</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>User authentication and login</td><td><span class="badge badge-gray">Auth Module</span></td></tr>
+            <tr><td>Role and permission assignment</td><td><span class="badge badge-gray">Auth Module</span></td></tr>
+            <tr><td>Appointment scheduling</td><td><span class="badge badge-gray">Appointment Module</span></td></tr>
+            <tr><td>Medical records / clinical notes</td><td><span class="badge badge-gray">EMR Module</span></td></tr>
+            <tr><td>Prescriptions and medications</td><td><span class="badge badge-gray">EMR / Pharmacy Module</span></td></tr>
+            <tr><td>Lab results and imaging</td><td><span class="badge badge-gray">Laboratory / Radiology Module</span></td></tr>
+            <tr><td>Billing and insurance</td><td><span class="badge badge-gray">Billing Module</span></td></tr>
+            <tr><td>Patient self-service portal</td><td><span class="badge badge-gray">Patient Portal Module</span></td></tr>
+            <tr><td>Document upload</td><td><span class="badge badge-gray">Document Module</span></td></tr>
+            <tr><td>Notifications and reminders</td><td><span class="badge badge-gray">Notification Module</span></td></tr>
+            <tr><td>Reporting and analytics</td><td><span class="badge badge-gray">Reporting Module</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── ROLES ──────────────────────────────────────────────── -->
+    <div id="roles" class="section section-anchor">
+      <h2>Roles &amp; Permissions</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Operation</th>
+              <th style="text-align:center">RECEPTIONIST</th>
+              <th style="text-align:center">DOCTOR</th>
+              <th style="text-align:center">NURSE</th>
+              <th style="text-align:center">ADMIN</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Register new patient</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+            </tr>
+            <tr>
+              <td>Search patients</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+            </tr>
+            <tr>
+              <td>View patient profile</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+            </tr>
+            <tr>
+              <td>Update patient demographics</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+            </tr>
+            <tr>
+              <td>Deactivate patient</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+            </tr>
+            <tr>
+              <td>Activate patient</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-no"  style="text-align:center">✗</td>
+              <td class="matrix-yes" style="text-align:center">✓</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout-danger">
+        <strong>Security Rule:</strong> Role enforcement MUST occur server-side on every request.
+        Client-side checks are cosmetic only and do not constitute a security boundary.
+        Unauthorized requests MUST return HTTP 403 — not a silent redirect.
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ═══════════════ USER STORIES ════════════════════════════ -->
+    <div class="section">
+      <h2 style="border:none;padding:0;margin-bottom:32px;">User Stories &amp; Acceptance Scenarios</h2>
+
+      <!-- US1 -->
+      <div id="us1" class="story-card section-anchor">
+        <div class="story-header">
+          <div class="story-priority p1">P1</div>
+          <div>
+            <div class="story-title">US1 — Register a New Patient</div>
+            <div class="story-desc">A receptionist onboards a first-time patient and receives a unique Patient ID.</div>
+          </div>
+          <div style="margin-left:auto;"><span class="badge badge-red">MVP · Blocking</span></div>
+        </div>
+        <div class="story-body">
+          <div class="callout callout-info" style="margin-bottom:16px;">
+            <strong>Independent Test:</strong> Fill only the 5 mandatory fields, submit, receive a Patient ID — with no other story implemented.
+          </div>
+          <h4>Acceptance Scenarios</h4>
+          <ol class="scenario-list">
+            <li><span class="given scenario-keyword">Given</span> a receptionist accesses the registration page, <span class="when scenario-keyword">When</span> the page loads, <span class="then scenario-keyword">Then</span> the system displays a form with four labelled sections: Personal Demographics, Contact Information, Emergency Contact, Medical Background.</li>
+            <li><span class="given scenario-keyword">Given</span> the form is displayed, <span class="when scenario-keyword">When</span> viewed, <span class="then scenario-keyword">Then</span> mandatory fields (First Name, Last Name, DOB, Gender, Phone) are visually marked as required.</li>
+            <li><span class="given scenario-keyword">Given</span> all mandatory fields are valid and form is submitted, <span class="when scenario-keyword">When</span> processed, <span class="then scenario-keyword">Then</span> the system creates the patient with status <code>ACTIVE</code>, generates a unique Patient ID (e.g., <code>P2026001</code>), shows success message, and records <code>createdAt</code> + <code>createdBy</code>.</li>
+            <li><span class="given scenario-keyword">Given</span> a valid DOB is entered, <span class="when scenario-keyword">When</span> the DOB field loses focus, <span class="then scenario-keyword">Then</span> the calculated age appears next to the field (e.g., "Age: 35 years") without form submission.</li>
+            <li><span class="given scenario-keyword">Given</span> a valid phone is entered, <span class="when scenario-keyword">When</span> the field loses focus, <span class="then scenario-keyword">Then</span> no error is shown.</li>
+            <li><span class="given scenario-keyword">Given</span> an invalid phone is entered (e.g., <code>12345</code>), <span class="when scenario-keyword">When</span> the field loses focus, <span class="then scenario-keyword">Then</span> the field-level error appears immediately below the field.</li>
+            <li><span class="given scenario-keyword">Given</span> an invalid email format, <span class="when scenario-keyword">When</span> the field loses focus, <span class="then scenario-keyword">Then</span> the email error appears.</li>
+            <li><span class="given scenario-keyword">Given</span> only <code>emergencyContactName</code> is filled without phone, <span class="when scenario-keyword">When</span> submitted, <span class="then scenario-keyword">Then</span> the pairing error is shown and form is not submitted.</li>
+            <li><span class="given scenario-keyword">Given</span> a phone matching an existing patient, <span class="when scenario-keyword">When</span> the field loses focus or form is submitted, <span class="then scenario-keyword">Then</span> a non-blocking ⚠ warning is shown with existing patient ID and name. Submit remains enabled.</li>
+            <li><span class="given scenario-keyword">Given</span> mandatory fields are missing or invalid, <span class="when scenario-keyword">When</span> submitted, <span class="then scenario-keyword">Then</span> the system highlights each invalid field in red, shows error below each field, and scrolls to the first error.</li>
+            <li><span class="given scenario-keyword">Given</span> a future DOB is entered, <span class="when scenario-keyword">When</span> the DOB field loses focus, <span class="then scenario-keyword">Then</span> "Date of birth cannot be a future date." is displayed.</li>
+            <li><span class="given scenario-keyword">Given</span> today's date is entered as DOB, <span class="when scenario-keyword">When</span> the DOB field loses focus, <span class="then scenario-keyword">Then</span> "Date of birth cannot be today." is displayed.</li>
+            <li><span class="given scenario-keyword">Given</span> two receptionists submit simultaneously, <span class="when scenario-keyword">When</span> processed, <span class="then scenario-keyword">Then</span> each receives a unique Patient ID — no duplicates, even at &gt;100,000 req/hr.</li>
+            <li><span class="given scenario-keyword">Given</span> submit is clicked once, <span class="when scenario-keyword">When</span> processing, <span class="then scenario-keyword">Then</span> the button is disabled with a loading indicator until response received — preventing double-submission.</li>
+            <li><span class="given scenario-keyword">Given</span> a Doctor or Nurse accesses the registration URL, <span class="when scenario-keyword">When</span> the page loads, <span class="then scenario-keyword">Then</span> an authorization error is shown and the form is not rendered.</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- US2 -->
+      <div id="us2" class="story-card section-anchor">
+        <div class="story-header">
+          <div class="story-priority p2">P2</div>
+          <div>
+            <div class="story-title">US2 — Search and Filter Patients</div>
+            <div class="story-desc">Staff quickly locates patients using name, ID, phone, or email with optional filters.</div>
+          </div>
+        </div>
+        <div class="story-body">
+          <div class="callout callout-info" style="margin-bottom:16px;">
+            <strong>Independent Test:</strong> Type a partial last name → debounced case-insensitive results in ≤ 2 seconds. Paginate to page 2. Navigate to profile. Back to List → page 2 restored.
+          </div>
+          <h4>Acceptance Scenarios</h4>
+          <ol class="scenario-list">
+            <li><span class="given scenario-keyword">Given</span> a user navigates to the patient list, <span class="when scenario-keyword">When</span> the page loads, <span class="then scenario-keyword">Then</span> all <code>ACTIVE</code> patients are shown sorted by registration date descending.</li>
+            <li><span class="given scenario-keyword">Given</span> the list is displayed, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> each row shows: Patient ID, Full Name, Age, Gender, Phone Number, Status badge.</li>
+            <li><span class="given scenario-keyword">Given</span> the total exceeds 20 records, <span class="when scenario-keyword">When</span> displayed, <span class="then scenario-keyword">Then</span> the list paginates at 20 per page showing "Showing X–Y of Z patients" with Previous/Next controls.</li>
+            <li><span class="given scenario-keyword">Given</span> a user types in the search box, <span class="when scenario-keyword">When</span> typing pauses for 300ms, <span class="then scenario-keyword">Then</span> a case-insensitive partial-match search runs across Patient ID (prefix), first name, last name, phone, and email.</li>
+            <li><span class="given scenario-keyword">Given</span> a user presses Enter, <span class="when scenario-keyword">When</span> pressed, <span class="then scenario-keyword">Then</span> the search executes immediately, bypassing the 300ms debounce.</li>
+            <li><span class="given scenario-keyword">Given</span> the search box is cleared, <span class="when scenario-keyword">When</span> cleared, <span class="then scenario-keyword">Then</span> the default active patient list is immediately restored.</li>
+            <li><span class="given scenario-keyword">Given</span> a status filter is selected, <span class="when scenario-keyword">When</span> applied, <span class="then scenario-keyword">Then</span> only matching status patients are shown (AND logic).</li>
+            <li><span class="given scenario-keyword">Given</span> a gender filter is selected, <span class="when scenario-keyword">When</span> applied, <span class="then scenario-keyword">Then</span> only patients with that gender are shown.</li>
+            <li><span class="given scenario-keyword">Given</span> a blood group filter is selected, <span class="when scenario-keyword">When</span> applied, <span class="then scenario-keyword">Then</span> only exact blood group matches are shown.</li>
+            <li><span class="given scenario-keyword">Given</span> search + multiple filters are active, <span class="when scenario-keyword">When</span> applied, <span class="then scenario-keyword">Then</span> results must satisfy ALL conditions (AND logic — not OR).</li>
+            <li><span class="given scenario-keyword">Given</span> no records match, <span class="when scenario-keyword">When</span> results return, <span class="then scenario-keyword">Then</span> "No patients found matching your search." is shown. No error state.</li>
+            <li><span class="given scenario-keyword">Given</span> a user clicks a patient row, <span class="when scenario-keyword">When</span> clicked, <span class="then scenario-keyword">Then</span> navigation goes to that patient's profile with list state (query, filters, page) preserved.</li>
+            <li><span class="given scenario-keyword">Given</span> a user clicks "Back to List" from profile, <span class="when scenario-keyword">When</span> clicked, <span class="then scenario-keyword">Then</span> the list restores the exact previous search query, filters, and page number.</li>
+            <li><span class="given scenario-keyword">Given</span> no patients exist, <span class="when scenario-keyword">When</span> the page loads, <span class="then scenario-keyword">Then</span> "No patients registered yet." is shown with a registration prompt (RECEPTIONIST/ADMIN only).</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- US3 -->
+      <div id="us3" class="story-card section-anchor">
+        <div class="story-header">
+          <div class="story-priority p3">P3</div>
+          <div>
+            <div class="story-title">US3 — View Patient Profile</div>
+            <div class="story-desc">Any authenticated staff member views the complete patient record in a single organised page.</div>
+          </div>
+        </div>
+        <div class="story-body">
+          <h4>Acceptance Scenarios</h4>
+          <ol class="scenario-list">
+            <li><span class="given scenario-keyword">Given</span> a user clicks a patient row, <span class="when scenario-keyword">When</span> the profile loads, <span class="then scenario-keyword">Then</span> four labelled sections are shown: Personal Demographics, Contact Information, Emergency Contact, Medical Background.</li>
+            <li><span class="given scenario-keyword">Given</span> the profile loads, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> Personal Demographics shows: Patient ID, Full Name, DOB, Age (calculated), Gender, Blood Group.</li>
+            <li><span class="given scenario-keyword">Given</span> the profile loads, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> Contact Information shows: Phone, Email (or "Not provided"), Address, City, State, Zip.</li>
+            <li><span class="given scenario-keyword">Given</span> emergency contact is present, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> the section shows: Name, Phone, Relationship.</li>
+            <li><span class="given scenario-keyword">Given</span> no emergency contact is stored, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> the section shows: "No emergency contact on file."</li>
+            <li><span class="given scenario-keyword">Given</span> patient is <code>ACTIVE</code>, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> a green badge "Active" is prominently shown. If <code>INACTIVE</code>, a red badge "Inactive".</li>
+            <li><span class="given scenario-keyword">Given</span> the profile loads, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> audit section shows: Registered [date] by [user], Last Updated [date] by [user] (or "Never updated").</li>
+            <li><span class="given scenario-keyword">Given</span> user is RECEPTIONIST or ADMIN, <span class="when scenario-keyword">When</span> profile renders, <span class="then scenario-keyword">Then</span> "Edit Patient" button is visible and actionable.</li>
+            <li><span class="given scenario-keyword">Given</span> user is DOCTOR or NURSE, <span class="when scenario-keyword">When</span> profile renders, <span class="then scenario-keyword">Then</span> no "Edit Patient" button is present (not rendered — not hidden, not disabled).</li>
+            <li><span class="given scenario-keyword">Given</span> user is ADMIN and patient is <code>ACTIVE</code>, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> "Deactivate Patient" button is visible.</li>
+            <li><span class="given scenario-keyword">Given</span> user is ADMIN and patient is <code>INACTIVE</code>, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> "Activate Patient" button is visible.</li>
+            <li><span class="given scenario-keyword">Given</span> a non-existent Patient ID is accessed, <span class="when scenario-keyword">When</span> the page loads, <span class="then scenario-keyword">Then</span> "Patient not found." is shown with a link back to the patient list.</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- US4 -->
+      <div id="us4" class="story-card section-anchor">
+        <div class="story-header">
+          <div class="story-priority p4">P4</div>
+          <div>
+            <div class="story-title">US4 — Update Patient Information</div>
+            <div class="story-desc">A receptionist or admin corrects or updates a patient's demographic and contact details.</div>
+          </div>
+        </div>
+        <div class="story-body">
+          <h4>Acceptance Scenarios</h4>
+          <ol class="scenario-list">
+            <li><span class="given scenario-keyword">Given</span> RECEPTIONIST or ADMIN clicks "Edit Patient", <span class="when scenario-keyword">When</span> the form opens, <span class="then scenario-keyword">Then</span> all current field values are pre-populated exactly as stored.</li>
+            <li><span class="given scenario-keyword">Given</span> the edit form is open, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> Patient ID and Registration Date are visible but read-only (visually distinct).</li>
+            <li><span class="given scenario-keyword">Given</span> a user modifies a field, <span class="when scenario-keyword">When</span> the field loses focus, <span class="then scenario-keyword">Then</span> the same validation rules as registration apply immediately.</li>
+            <li><span class="given scenario-keyword">Given</span> valid data is submitted, <span class="when scenario-keyword">When</span> saved, <span class="then scenario-keyword">Then</span> changes are persisted, <code>updatedAt</code> and <code>updatedBy</code> are updated, a success banner is shown, and the user is returned to the profile view.</li>
+            <li><span class="given scenario-keyword">Given</span> a user clicks "Cancel", <span class="when scenario-keyword">When</span> clicked, <span class="then scenario-keyword">Then</span> no data is written and the user returns to the profile showing the original data.</li>
+            <li><span class="given scenario-keyword">Given</span> a DOCTOR or NURSE accesses the edit form URL directly, <span class="when scenario-keyword">When</span> loaded, <span class="then scenario-keyword">Then</span> "You do not have permission to edit patient records." is shown. Form is not rendered.</li>
+            <li><span class="given scenario-keyword">Given</span> no field values are changed and the form is submitted, <span class="when scenario-keyword">When</span> processed, <span class="then scenario-keyword">Then</span> the system still saves, updates <code>updatedAt</code> and <code>updatedBy</code> — no-op detection/skip is NOT acceptable.</li>
+            <li><span class="given scenario-keyword">Given</span> an optional field previously filled is cleared and submitted, <span class="when scenario-keyword">When</span> processed, <span class="then scenario-keyword">Then</span> the field is saved as empty — intentional clearing is a valid edit.</li>
+            <li><span class="given scenario-keyword">Given</span> two users edit simultaneously and one saves first, <span class="when scenario-keyword">When</span> the second user saves, <span class="then scenario-keyword">Then</span> HTTP 409 is returned: "Patient record was modified by another user. Please reload and try again."</li>
+          </ol>
+        </div>
+      </div>
+
+      <!-- US5 -->
+      <div id="us5" class="story-card section-anchor">
+        <div class="story-header">
+          <div class="story-priority p5">P5</div>
+          <div>
+            <div class="story-title">US5 — Manage Patient Status</div>
+            <div class="story-desc">An admin deactivates or reactivates patient records without permanent deletion.</div>
+          </div>
+        </div>
+        <div class="story-body">
+          <div class="callout callout-warn" style="margin-bottom:16px;">
+            <strong>HIPAA Requirement:</strong> Soft deletion only. Hard delete is FORBIDDEN under all circumstances. Deactivated patient IDs MUST NOT be reassigned.
+          </div>
+          <h4>Acceptance Scenarios</h4>
+          <ol class="scenario-list">
+            <li><span class="given scenario-keyword">Given</span> ADMIN views an <code>ACTIVE</code> patient profile, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> "Deactivate Patient" button is shown. "Activate Patient" is not shown.</li>
+            <li><span class="given scenario-keyword">Given</span> ADMIN views an <code>INACTIVE</code> patient profile, <span class="when scenario-keyword">When</span> rendered, <span class="then scenario-keyword">Then</span> "Activate Patient" button is shown. "Deactivate Patient" is not shown.</li>
+            <li><span class="given scenario-keyword">Given</span> ADMIN clicks "Deactivate Patient", <span class="when scenario-keyword">When</span> clicked, <span class="then scenario-keyword">Then</span> a modal confirmation dialog appears: title "Deactivate Patient", body "Are you sure you want to deactivate [Full Name] (Patient ID: [ID])? …", buttons "Confirm Deactivation" (red) and "Cancel".</li>
+            <li><span class="given scenario-keyword">Given</span> ADMIN clicks "Confirm Deactivation", <span class="when scenario-keyword">When</span> confirmed, <span class="then scenario-keyword">Then</span> status changes to <code>INACTIVE</code>, <code>updatedAt</code>/<code>updatedBy</code> are recorded, dialog closes, profile refreshes with red "Inactive" badge, success message shown.</li>
+            <li><span class="given scenario-keyword">Given</span> ADMIN clicks "Cancel" in the dialog, <span class="when scenario-keyword">When</span> cancelled, <span class="then scenario-keyword">Then</span> dialog closes with no changes.</li>
+            <li><span class="given scenario-keyword">Given</span> ADMIN clicks "Activate Patient", <span class="when scenario-keyword">When</span> clicked, <span class="then scenario-keyword">Then</span> (no dialog) status immediately changes to <code>ACTIVE</code>, profile refreshes with green "Active" badge, success message shown.</li>
+            <li><span class="given scenario-keyword">Given</span> RECEPTIONIST, DOCTOR, or NURSE attempts status change via URL or API, <span class="when scenario-keyword">When</span> attempted, <span class="then scenario-keyword">Then</span> HTTP 403 is returned and no change is made.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ─── DATA MODEL ────────────────────────────────────────── -->
+    <div id="data-model" class="section section-anchor">
+      <h2>Data Model</h2>
+      <p>Three PostgreSQL tables managed by Flyway migrations (V1–V4).</p>
+      <pre>PatientIdSequence (1) ──── generates ──── Patient (N)
+Patient (1) ──── has many ──── PatientAuditLog (N)</pre>
+
+      <div id="entity-patient" class="section-anchor">
+        <h3>Entity 1 — Patient</h3>
+        <p>Table: <code>patients</code> · JPA: <code>com.ainexus.hospital.patient.entity.Patient</code></p>
+
+        <h4>Identity &amp; Status</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Field</th><th>Column</th><th>Type</th><th>Mandatory</th><th>Rules</th></tr></thead>
+            <tbody>
+              <tr><td><code>patientId</code></td><td><code>patient_id</code></td><td>VARCHAR(12) PK</td><td>Auto-generated</td><td>Format: <code>P</code> + 4-digit year + 3-digit zero-padded seq (e.g. <code>P2026001</code>). Read-only. Never reused.</td></tr>
+              <tr><td><code>status</code></td><td><code>status</code></td><td>VARCHAR(10)</td><td>Auto-set</td><td><code>ACTIVE</code> or <code>INACTIVE</code>. Default on creation: <code>ACTIVE</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Personal Demographics</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Field</th><th>Type</th><th>Mandatory</th><th>Max</th><th>Validation</th></tr></thead>
+            <tbody>
+              <tr><td><code>firstName</code></td><td>VARCHAR(50)</td><td><span class="tick">✓</span></td><td>50</td><td>Letters, hyphens, apostrophes, spaces. Min 1 non-space char. Trimmed before save.</td></tr>
+              <tr><td><code>lastName</code></td><td>VARCHAR(50)</td><td><span class="tick">✓</span></td><td>50</td><td>Same as firstName.</td></tr>
+              <tr><td><code>dateOfBirth</code></td><td>DATE</td><td><span class="tick">✓</span></td><td>—</td><td>Valid calendar date. Not today. Not future. Not &gt;150 years past. ISO-8601.</td></tr>
+              <tr><td><code>age</code></td><td>Derived</td><td>—</td><td>—</td><td>Computed at read time from DOB. Never stored.</td></tr>
+              <tr><td><code>gender</code></td><td>ENUM</td><td><span class="tick">✓</span></td><td>—</td><td><code>MALE</code>, <code>FEMALE</code>, <code>OTHER</code>. No default — user must select.</td></tr>
+              <tr><td><code>bloodGroup</code></td><td>ENUM</td><td><span class="cross">✗</span></td><td>—</td><td><code>A+</code>, <code>A-</code>, <code>B+</code>, <code>B-</code>, <code>AB+</code>, <code>AB-</code>, <code>O+</code>, <code>O-</code>, <code>UNKNOWN</code>. Defaults to <code>UNKNOWN</code>.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Contact Information</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Field</th><th>Type</th><th>Mandatory</th><th>Max</th><th>Validation</th></tr></thead>
+            <tbody>
+              <tr><td><code>phone</code></td><td>VARCHAR(20)</td><td><span class="tick">✓</span></td><td>20</td><td>Must match: <code>+1-XXX-XXX-XXXX</code>, <code>(XXX) XXX-XXXX</code>, or <code>XXX-XXX-XXXX</code></td></tr>
+              <tr><td><code>email</code></td><td>VARCHAR(100)</td><td><span class="cross">✗</span></td><td>100</td><td>RFC 5322 simplified. Stored in lowercase.</td></tr>
+              <tr><td><code>address</code></td><td>VARCHAR(200)</td><td><span class="cross">✗</span></td><td>200</td><td>Free text.</td></tr>
+              <tr><td><code>city</code></td><td>VARCHAR(100)</td><td><span class="cross">✗</span></td><td>100</td><td>Letters, spaces, hyphens.</td></tr>
+              <tr><td><code>state</code></td><td>VARCHAR(100)</td><td><span class="cross">✗</span></td><td>100</td><td>Free text.</td></tr>
+              <tr><td><code>zipCode</code></td><td>VARCHAR(20)</td><td><span class="cross">✗</span></td><td>20</td><td>Alphanumeric, spaces, hyphens.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Emergency Contact</h4>
+        <div class="callout callout-warn">
+          <strong>Pairing Rule:</strong> <code>emergencyContactName</code> and <code>emergencyContactPhone</code> must be provided together. If one is filled the other is required. <code>emergencyContactRelationship</code> is always optional.
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Field</th><th>Type</th><th>Max</th></tr></thead>
+            <tbody>
+              <tr><td><code>emergencyContactName</code></td><td>VARCHAR(100)</td><td>100</td></tr>
+              <tr><td><code>emergencyContactPhone</code></td><td>VARCHAR(20)</td><td>20 — same phone format rules</td></tr>
+              <tr><td><code>emergencyContactRelationship</code></td><td>VARCHAR(50)</td><td>50 — free text, always optional</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Medical Background</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Field</th><th>Type</th><th>Max</th></tr></thead>
+            <tbody>
+              <tr><td><code>knownAllergies</code></td><td>TEXT</td><td>1000 chars</td></tr>
+              <tr><td><code>chronicConditions</code></td><td>TEXT</td><td>1000 chars</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4>Audit Fields (System-managed — never editable by users)</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code>createdAt</code></td><td>TIMESTAMPTZ</td><td>Set once at creation. Immutable (<code>@Column(updatable=false)</code>).</td></tr>
+              <tr><td><code>createdBy</code></td><td>VARCHAR(100)</td><td>Identity of the registering staff member. Set once.</td></tr>
+              <tr><td><code>updatedAt</code></td><td>TIMESTAMPTZ</td><td>Updated on every write operation.</td></tr>
+              <tr><td><code>updatedBy</code></td><td>VARCHAR(100)</td><td>Identity of the last updating staff member.</td></tr>
+              <tr><td><code>version</code></td><td>INTEGER</td><td>JPA <code>@Version</code> — optimistic concurrency control. Conflict → HTTP 409.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="entity-sequence" class="section-anchor">
+        <h3>Entity 2 — PatientIdSequence</h3>
+        <p>Table: <code>patient_id_sequences</code> — atomic per-year ID generation.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Column</th><th>Type</th><th>Constraints</th></tr></thead>
+            <tbody>
+              <tr><td><code>year</code></td><td>INTEGER</td><td>PRIMARY KEY</td></tr>
+              <tr><td><code>last_sequence</code></td><td>INTEGER</td><td>NOT NULL DEFAULT 0</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <h4>ID Generation Algorithm</h4>
+        <pre>BEGIN TRANSACTION (PESSIMISTIC WRITE LOCK on row);
+  SELECT last_sequence FROM patient_id_sequences WHERE year = CURRENT_YEAR FOR UPDATE;
+  IF no row: INSERT (year, last_sequence=1); nextSeq = 1;
+  ELSE: UPDATE SET last_sequence = last_sequence + 1; nextSeq = new value;
+
+  IF nextSeq &lt;= 999: patientId = "P" + YEAR + LPAD(nextSeq, 3, '0')
+  ELSE:               patientId = "P" + YEAR + nextSeq    -- e.g. P20261000
+COMMIT;</pre>
+        <p>Sequence resets to <code>001</code> each new calendar year. Gaps are allowed (rolled-back txns). Uniqueness is guaranteed; contiguity is not.</p>
+      </div>
+
+      <div id="entity-audit" class="section-anchor">
+        <h3>Entity 3 — PatientAuditLog</h3>
+        <p>Table: <code>patient_audit_log</code> — immutable audit trail. Append-only. 7-year HIPAA retention.</p>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Column</th><th>Type</th><th>Constraints</th></tr></thead>
+            <tbody>
+              <tr><td><code>id</code></td><td>BIGSERIAL</td><td>PRIMARY KEY, auto-increment</td></tr>
+              <tr><td><code>timestamp</code></td><td>TIMESTAMPTZ</td><td>NOT NULL DEFAULT NOW()</td></tr>
+              <tr><td><code>operation</code></td><td>VARCHAR(20)</td><td>CHECK IN ('REGISTER','UPDATE','DEACTIVATE','ACTIVATE')</td></tr>
+              <tr><td><code>patient_id</code></td><td>VARCHAR(12)</td><td>NOT NULL — no FK (HIPAA retention independence)</td></tr>
+              <tr><td><code>performed_by</code></td><td>VARCHAR(100)</td><td>NOT NULL</td></tr>
+              <tr><td><code>changed_fields</code></td><td>TEXT[]</td><td>NULLABLE — field NAMES only for UPDATE, null for others</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="callout callout-danger">
+          <strong>PHI Restriction:</strong> Audit log MUST NOT contain PHI beyond <code>patientId</code>. <code>changedFields</code> stores field NAMES (e.g., "phone", "email") — never their values.
+          Written in the same <code>@Transactional</code> block as the patient write — they MUST NOT diverge.
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── DTOs ──────────────────────────────────────────────── -->
+    <div id="dtos" class="section section-anchor">
+      <h2>DTOs</h2>
+      <h3>Request DTOs</h3>
+      <pre><code>// PatientRegistrationRequest  (same fields as PatientUpdateRequest)
+public record PatientRegistrationRequest(
+    @NotBlank @Size(max=50)  String firstName,
+    @NotBlank @Size(max=50)  String lastName,
+    @NotNull @ValidDateOfBirth LocalDate dateOfBirth,
+    @NotNull Gender gender,
+    @NotNull @PhoneNumber String phone,
+    @Email @Size(max=100)    String email,          // optional
+    @Size(max=200)           String address,        // optional
+    @Size(max=100)           String city,           // optional
+    @Size(max=100)           String state,          // optional
+    @Size(max=20)            String zipCode,        // optional
+    @Size(max=100)           String emergencyContactName,   // optional
+    @PhoneNumber             String emergencyContactPhone,  // optional
+    @Size(max=50)            String emergencyContactRelationship,
+    BloodGroup bloodGroup,                          // defaults UNKNOWN
+    @Size(max=1000)          String knownAllergies,
+    @Size(max=1000)          String chronicConditions
+    // class-level: @EmergencyContactPairing
+)</code></pre>
+
+      <h3>Response DTOs</h3>
+      <pre><code>// Full profile
+public record PatientResponse(
+    String patientId, String firstName, String lastName,
+    LocalDate dateOfBirth, int age,           // age is always computed
+    Gender gender, BloodGroup bloodGroup,
+    String phone, String email, String address, String city, String state, String zipCode,
+    String emergencyContactName, String emergencyContactPhone, String emergencyContactRelationship,
+    String knownAllergies, String chronicConditions,
+    PatientStatus status,
+    OffsetDateTime createdAt, String createdBy,
+    OffsetDateTime updatedAt, String updatedBy,
+    Integer version                           // included for optimistic lock
+)
+
+// List row
+public record PatientSummaryResponse(
+    String patientId, String firstName, String lastName,
+    int age, Gender gender, String phone, PatientStatus status
+)
+
+// Paginated wrapper
+public record PagedResponse&lt;T&gt;(
+    List&lt;T&gt; content, int page, int size,
+    long totalElements, int totalPages, boolean first, boolean last
+)
+
+// Registration response
+public record PatientRegistrationResponse(String patientId, String message)
+
+// Status change response
+public record PatientStatusChangeResponse(String patientId, PatientStatus status, String message)</code></pre>
+    </div>
+
+    <!-- ─── VALIDATION ────────────────────────────────────────── -->
+    <div id="validation" class="section section-anchor">
+      <h2>Validation Rules &amp; Error Messages</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Violation</th><th>Error Message</th></tr></thead>
+          <tbody>
+            <tr><td>First Name</td><td>Empty or blank</td><td>"First name is required."</td></tr>
+            <tr><td>First Name</td><td>Invalid characters</td><td>"First name may only contain letters, hyphens, apostrophes, and spaces."</td></tr>
+            <tr><td>First Name</td><td>Exceeds 50 chars</td><td>"First name must not exceed 50 characters."</td></tr>
+            <tr><td>Last Name</td><td>Empty or blank</td><td>"Last name is required."</td></tr>
+            <tr><td>Last Name</td><td>Invalid characters</td><td>"Last name may only contain letters, hyphens, apostrophes, and spaces."</td></tr>
+            <tr><td>Last Name</td><td>Exceeds 50 chars</td><td>"Last name must not exceed 50 characters."</td></tr>
+            <tr><td>Date of Birth</td><td>Empty</td><td>"Date of birth is required."</td></tr>
+            <tr><td>Date of Birth</td><td>Future date</td><td>"Date of birth cannot be a future date."</td></tr>
+            <tr><td>Date of Birth</td><td>Today's date</td><td>"Date of birth cannot be today."</td></tr>
+            <tr><td>Date of Birth</td><td>&gt; 150 years ago</td><td>"Date of birth must be within the last 150 years."</td></tr>
+            <tr><td>Gender</td><td>Not selected</td><td>"Gender is required."</td></tr>
+            <tr><td>Phone</td><td>Empty</td><td>"Phone number is required."</td></tr>
+            <tr><td>Phone</td><td>Invalid format</td><td>"Phone number must match: +1-XXX-XXX-XXXX, (XXX) XXX-XXXX, or XXX-XXX-XXXX."</td></tr>
+            <tr><td>Email</td><td>Invalid format</td><td>"Please enter a valid email address."</td></tr>
+            <tr><td>Email</td><td>Exceeds 100 chars</td><td>"Email address must not exceed 100 characters."</td></tr>
+            <tr><td>Emergency Contact</td><td>Name without phone</td><td>"Emergency contact phone is required when a contact name is provided."</td></tr>
+            <tr><td>Emergency Contact</td><td>Phone without name</td><td>"Emergency contact name is required when a contact phone is provided."</td></tr>
+            <tr><td>Emergency Contact Phone</td><td>Invalid format</td><td>"Emergency contact phone must match: +1-XXX-XXX-XXXX, (XXX) XXX-XXXX, or XXX-XXX-XXXX."</td></tr>
+            <tr><td>Known Allergies</td><td>Exceeds 1000 chars</td><td>"Known allergies must not exceed 1000 characters."</td></tr>
+            <tr><td>Chronic Conditions</td><td>Exceeds 1000 chars</td><td>"Chronic conditions must not exceed 1000 characters."</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout-warn">
+        <strong>Duplicate phone warning</strong> (non-blocking — shown inline, submit stays enabled):<br>
+        ⚠ "A patient with phone number [PHONE] already exists (Patient ID: [ID], Name: [NAME]). You may proceed with registration."
+      </div>
+      <h3>Custom Validators</h3>
+      <pre><code>// @PhoneNumber — regex
+^(\+1-\d{3}-\d{3}-\d{4}|\(\d{3}\) \d{3}-\d{4}|\d{3}-\d{3}-\d{4})$
+
+// @ValidDateOfBirth — checks:
+//   • Not today
+//   • Not future
+//   • Not more than 150 years in the past
+
+// @EmergencyContactPairing — class-level cross-field:
+//   emergencyContactName AND emergencyContactPhone both present OR both absent</code></pre>
+    </div>
+
+    <!-- ─── API ───────────────────────────────────────────────── -->
+    <div id="api" class="section section-anchor">
+      <h2>API Endpoints</h2>
+      <p>Base URL: <code>https://localhost/api/v1</code> · All requests require <code>Authorization: Bearer &lt;JWT&gt;</code></p>
+      <div class="endpoint-list">
+        <div class="endpoint">
+          <span class="method method-post">POST</span>
+          <div>
+            <div class="endpoint-path">/patients</div>
+            <div class="endpoint-desc">Register a new patient. Returns 201 with <code>patientId</code> and success message.</div>
+            <div class="endpoint-meta">Roles: RECEPTIONIST, ADMIN · Body: PatientRegistrationRequest · Response: PatientRegistrationResponse</div>
+          </div>
+        </div>
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <div>
+            <div class="endpoint-path">/patients</div>
+            <div class="endpoint-desc">Search and filter patients with pagination. Defaults: status=ACTIVE, page=0, size=20, sort=createdAt,desc.</div>
+            <div class="endpoint-meta">Roles: All · Query params: query, status, gender, bloodGroup, page, size · Response: PagedResponse&lt;PatientSummaryResponse&gt;</div>
+          </div>
+        </div>
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <div>
+            <div class="endpoint-path">/patients/{patientId}</div>
+            <div class="endpoint-desc">View full patient profile. Returns 404 if patient not found.</div>
+            <div class="endpoint-meta">Roles: All · Response: PatientResponse</div>
+          </div>
+        </div>
+        <div class="endpoint">
+          <span class="method method-get">GET</span>
+          <div>
+            <div class="endpoint-path">/patients/check-phone?phone=&amp;excludePatientId=</div>
+            <div class="endpoint-desc">Check for duplicate phone number. Used for non-blocking warning during registration/update.</div>
+            <div class="endpoint-meta">Roles: RECEPTIONIST, ADMIN · Response: DuplicatePhoneResponse</div>
+          </div>
+        </div>
+        <div class="endpoint">
+          <span class="method method-put">PUT</span>
+          <div>
+            <div class="endpoint-path">/patients/{patientId}</div>
+            <div class="endpoint-desc">Update patient demographics. Requires <code>If-Match: {version}</code> header for optimistic locking. Conflict → 409.</div>
+            <div class="endpoint-meta">Roles: RECEPTIONIST, ADMIN · Header: If-Match · Body: PatientUpdateRequest · Response: PatientResponse</div>
+          </div>
+        </div>
+        <div class="endpoint">
+          <span class="method method-patch">PATCH</span>
+          <div>
+            <div class="endpoint-path">/patients/{patientId}/status</div>
+            <div class="endpoint-desc">Activate or deactivate a patient. Invalid transitions (already active/inactive) → 409.</div>
+            <div class="endpoint-meta">Roles: ADMIN only · Body: <code>{"action": "DEACTIVATE" | "ACTIVATE"}</code> · Response: PatientStatusChangeResponse</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>HTTP Status Codes</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Meaning</th><th>Trigger</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-blue">201</span></td><td>Created</td><td>Successful patient registration</td></tr>
+            <tr><td><span class="badge badge-blue">200</span></td><td>OK</td><td>Successful GET, PUT, PATCH</td></tr>
+            <tr><td><span class="badge badge-orange">400</span></td><td>Bad Request</td><td>Validation failure — fieldErrors[] in response body</td></tr>
+            <tr><td><span class="badge badge-orange">401</span></td><td>Unauthorized</td><td>Missing or invalid JWT</td></tr>
+            <tr><td><span class="badge badge-orange">403</span></td><td>Forbidden</td><td>Insufficient role</td></tr>
+            <tr><td><span class="badge badge-orange">404</span></td><td>Not Found</td><td>Patient ID does not exist</td></tr>
+            <tr><td><span class="badge badge-orange">409</span></td><td>Conflict</td><td>Optimistic lock conflict or invalid status transition</td></tr>
+            <tr><td><span class="badge badge-red">429</span></td><td>Too Many Requests</td><td>Rate limit exceeded (&gt;200 req/IP/min) — includes Retry-After header</td></tr>
+            <tr><td><span class="badge badge-red">503</span></td><td>Service Unavailable</td><td>Auth circuit breaker OPEN or DB unreachable</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── STATE MACHINE ─────────────────────────────────────── -->
+    <div id="state-machine" class="section section-anchor">
+      <h2>Patient Status State Machine</h2>
+      <div class="state-machine">
+        <div class="state-box state-active">ACTIVE</div>
+        <div class="state-arrow">
+          <div class="arrow-label">ADMIN: Deactivate<br>+ Confirm Dialog</div>
+          <div class="arrow-line">⟶</div>
+        </div>
+        <div class="state-box state-inactive">INACTIVE</div>
+        <div class="state-arrow">
+          <div class="arrow-label">ADMIN: Activate<br>(no dialog)</div>
+          <div class="arrow-line">⟶</div>
+        </div>
+        <div class="state-box state-active">ACTIVE</div>
+      </div>
+      <ul class="bullet">
+        <li>ACTIVE → INACTIVE: ADMIN only — requires modal confirmation dialog</li>
+        <li>INACTIVE → ACTIVE: ADMIN only — no confirmation required</li>
+        <li>No other status transitions exist</li>
+        <li>Hard delete is <strong>FORBIDDEN</strong> under all circumstances</li>
+        <li>Status change + audit log write are a single atomic transaction</li>
+        <li>Registration creates all patients as <code>ACTIVE</code></li>
+      </ul>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ─── NFR: SLA ───────────────────────────────────────────── -->
+    <div id="nfr-sla" class="section section-anchor">
+      <h2>SLA &amp; Availability</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Metric</th><th>Target</th></tr></thead>
+          <tbody>
+            <tr><td>Monthly uptime</td><td>≥ 99.9% (max 43.8 minutes downtime per month)</td></tr>
+            <tr><td>Annual uptime</td><td>≥ 99.9% (max 8.76 hours downtime per year)</td></tr>
+            <tr><td>Planned maintenance window</td><td>Announced 48 hours in advance; max 30 minutes per window</td></tr>
+            <tr><td>Recovery Time Objective (RTO)</td><td>≤ 5 minutes from detected failure to service restored</td></tr>
+            <tr><td>Recovery Point Objective (RPO)</td><td>≤ 1 hour (max data loss acceptable on catastrophic failure)</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── NFR: PERFORMANCE ──────────────────────────────────── -->
+    <div id="nfr-perf" class="section section-anchor">
+      <h2>Throughput &amp; Performance</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Operation</th><th>p95 Target</th><th>Condition</th></tr></thead>
+          <tbody>
+            <tr><td>Peak throughput</td><td>&gt; 100,000 req/hr (~150 req/sec burst)</td><td>All operations combined</td></tr>
+            <tr><td>Patient list load</td><td>≤ 2 seconds</td><td>Up to 100,000 records</td></tr>
+            <tr><td>Search results</td><td>≤ 2 seconds</td><td>Full-text search across 100,000 records</td></tr>
+            <tr><td>Patient registration save</td><td>≤ 3 seconds</td><td>Under peak concurrent load</td></tr>
+            <tr><td>Patient profile load</td><td>≤ 2 seconds</td><td>Any single record</td></tr>
+            <tr><td>Patient update save</td><td>≤ 2 seconds</td><td>Under peak concurrent load</td></tr>
+            <tr><td>Status change</td><td>≤ 1 second</td><td>Single record update</td></tr>
+            <tr><td>Error rate under peak load</td><td>&lt; 0.1%</td><td>All 5xx errors combined</td></tr>
+            <tr><td>Request timeout threshold</td><td>10 seconds</td><td>After which HTTP 503 is returned</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── NFR: INFRASTRUCTURE ───────────────────────────────── -->
+    <div id="nfr-infra" class="section section-anchor">
+      <h2>Infrastructure — Docker Deployment</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Service</th><th>Role</th><th>Internal Port</th><th>External Port</th><th>CPU / RAM Limit</th></tr></thead>
+          <tbody>
+            <tr><td><code>db</code></td><td>PostgreSQL 15 primary data store</td><td>5432</td><td>5432 (dev only)</td><td>2.0 CPU / 1 GB</td></tr>
+            <tr><td><code>backend</code></td><td>Spring Boot REST API</td><td>8080</td><td>8080 (dev only)</td><td>1.0 CPU / 512 MB</td></tr>
+            <tr><td><code>frontend</code></td><td>React SPA (Nginx static)</td><td>3000</td><td>—</td><td>0.5 CPU / 256 MB</td></tr>
+            <tr><td><code>reverse-proxy</code></td><td>Nginx — TLS termination, rate limiting, routing</td><td>80 / 443</td><td>80 / 443</td><td>0.25 CPU / 64 MB</td></tr>
+            <tr><td><code>pgadmin</code></td><td>PostgreSQL GUI — optional, dev only</td><td>5050</td><td>5050</td><td>—</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout-info">
+        All services run on a private Docker bridge network <code>hospital-net</code>.
+        The only service accessible from the host is <code>reverse-proxy</code> on ports 80/443.
+        The <code>db</code> service MUST NOT be exposed externally in production mode.
+      </div>
+    </div>
+
+    <!-- ─── NFR: DATABASE ─────────────────────────────────────── -->
+    <div id="nfr-db" class="section section-anchor">
+      <h2>Database — PostgreSQL 15</h2>
+
+      <h3>Indexes</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Index Name</th><th>Table</th><th>Columns</th><th>Type</th><th>Purpose</th></tr></thead>
+          <tbody>
+            <tr><td><code>idx_patients_status</code></td><td>patients</td><td>status</td><td>B-Tree</td><td>Filter by Active/Inactive</td></tr>
+            <tr><td><code>idx_patients_last_name</code></td><td>patients</td><td>last_name</td><td>B-Tree</td><td>Name search</td></tr>
+            <tr><td><code>idx_patients_first_name</code></td><td>patients</td><td>first_name</td><td>B-Tree</td><td>Name search</td></tr>
+            <tr><td><code>idx_patients_phone</code></td><td>patients</td><td>phone</td><td>B-Tree</td><td>Phone search + duplicate check</td></tr>
+            <tr><td><code>idx_patients_email</code></td><td>patients</td><td>email</td><td>B-Tree</td><td>Email search</td></tr>
+            <tr><td><code>idx_patients_blood_group</code></td><td>patients</td><td>blood_group</td><td>B-Tree</td><td>Blood group filter</td></tr>
+            <tr><td><code>idx_patients_gender</code></td><td>patients</td><td>gender</td><td>B-Tree</td><td>Gender filter</td></tr>
+            <tr><td><code>idx_patients_created_at</code></td><td>patients</td><td>created_at DESC</td><td>B-Tree</td><td>Default sort order</td></tr>
+            <tr><td><code>idx_patients_full_text</code></td><td>patients</td><td>to_tsvector(first_name || last_name)</td><td>GIN</td><td>Full-text search</td></tr>
+            <tr><td><code>idx_audit_patient_id</code></td><td>patient_audit_log</td><td>patient_id</td><td>B-Tree</td><td>Audit queries by patient</td></tr>
+            <tr><td><code>idx_audit_performed_by</code></td><td>patient_audit_log</td><td>performed_by</td><td>B-Tree</td><td>Audit queries by user</td></tr>
+            <tr><td><code>idx_audit_timestamp</code></td><td>patient_audit_log</td><td>timestamp DESC</td><td>B-Tree</td><td>Audit chronological queries</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>HikariCP Connection Pool</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+          <tbody>
+            <tr><td>minimumIdle</td><td>5</td></tr>
+            <tr><td>maximumPoolSize</td><td>20</td></tr>
+            <tr><td>connectionTimeout</td><td>3,000 ms (fail fast)</td></tr>
+            <tr><td>idleTimeout</td><td>600,000 ms (10 minutes)</td></tr>
+            <tr><td>maxLifetime</td><td>1,800,000 ms (30 minutes)</td></tr>
+            <tr><td>connectionTestQuery</td><td>SELECT 1</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Backup &amp; Recovery</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Type</th><th>Frequency</th><th>Retention</th><th>Storage</th></tr></thead>
+          <tbody>
+            <tr><td>Full logical backup (<code>pg_dump</code>)</td><td>Daily at 02:00 UTC</td><td>90 days</td><td>Docker volume <code>db-backups</code></td></tr>
+            <tr><td>Incremental WAL archiving</td><td>Continuous</td><td>30 days</td><td>Docker volume <code>db-wal-archive</code></td></tr>
+            <tr><td>Long-term HIPAA archive</td><td>Monthly snapshot</td><td>7 years minimum</td><td>Off-container cold storage</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── NFR: SECURITY ─────────────────────────────────────── -->
+    <div id="nfr-security" class="section section-anchor">
+      <h2>Security &amp; HIPAA Compliance</h2>
+      <ul class="bullet">
+        <li>All patient data is classified as PHI (Protected Health Information)</li>
+        <li>Every read, write, and status change MUST produce an immutable audit log entry</li>
+        <li>PHI MUST NOT appear in application logs, error responses, or stack traces</li>
+        <li>All requests without a valid authenticated session MUST be rejected with HTTP 401</li>
+        <li>All requests with insufficient role MUST be rejected with HTTP 403</li>
+        <li>All data transmission MUST use HTTPS (TLS 1.2 minimum; TLS 1.3 preferred)</li>
+        <li>HTTP (port 80) MUST redirect to HTTPS (port 443) — no plain HTTP patient data ever</li>
+        <li>Database passwords and JWT secrets MUST be injected via environment variables — never hardcoded</li>
+        <li>SQL queries MUST use parameterized statements — no string concatenation for queries</li>
+        <li>Audit logs MUST be retained for a minimum of 7 years (HIPAA requirement)</li>
+        <li>Rate limiting: max 200 requests per IP per minute at Nginx layer → HTTP 429 + Retry-After header</li>
+      </ul>
+    </div>
+
+    <!-- ─── NFR: RESILIENCE ───────────────────────────────────── -->
+    <div id="nfr-resilience" class="section section-anchor">
+      <h2>Resilience &amp; Fault Tolerance</h2>
+      <h3>Auth Module Circuit Breaker (Resilience4j)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>State</th><th>Trigger</th><th>Behavior</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-green">CLOSED</span></td><td>&lt; 5 failures in 10 seconds</td><td>All requests proceed normally</td></tr>
+            <tr><td><span class="badge badge-red">OPEN</span></td><td>≥ 5 failures in 10 seconds</td><td>HTTP 503: "Authentication service unavailable. Please try again shortly."</td></tr>
+            <tr><td><span class="badge badge-orange">HALF-OPEN</span></td><td>After 30-second cooldown</td><td>One probe request allowed. If success → CLOSED. If fail → OPEN again.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout-danger">
+        <strong>Fail-closed rule:</strong> If Auth Module is unavailable (circuit breaker OPEN), ALL patient module operations MUST be denied. The system MUST NOT fail open.
+      </div>
+      <h3>Graceful Shutdown</h3>
+      <ul class="bullet">
+        <li>On SIGTERM: stop accepting new requests immediately</li>
+        <li>Allow all in-flight requests to complete (30-second drain window)</li>
+        <li>Close database connections cleanly</li>
+        <li>Exit with code 0</li>
+        <li>Container stop timeout: 35 seconds (5s margin above drain window)</li>
+      </ul>
+      <h3>Read Retries</h3>
+      <ul class="bullet">
+        <li>Read-only operations retry up to 3 times on transient DB errors with exponential backoff (100ms, 200ms, 400ms)</li>
+        <li>Write operations (register, update, status change) MUST NOT be retried automatically — failed writes are surfaced immediately to the user</li>
+      </ul>
+    </div>
+
+    <!-- ─── NFR: OBSERVABILITY ────────────────────────────────── -->
+    <div id="nfr-obs" class="section section-anchor">
+      <h2>Observability &amp; Monitoring</h2>
+      <h3>Health Check Endpoints</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Endpoint</th><th>Purpose</th><th>Expected Response</th></tr></thead>
+          <tbody>
+            <tr><td><code>GET /actuator/health</code></td><td>Overall service health</td><td><code>{"status":"UP"}</code></td></tr>
+            <tr><td><code>GET /actuator/health/liveness</code></td><td>Is the process alive?</td><td><code>{"status":"UP"}</code></td></tr>
+            <tr><td><code>GET /actuator/health/readiness</code></td><td>Ready to accept traffic? (DB connected)</td><td><code>{"status":"UP"}</code></td></tr>
+            <tr><td><code>GET /actuator/metrics</code></td><td>Prometheus-compatible metrics</td><td>Metrics in text format</td></tr>
+            <tr><td><code>GET /actuator/info</code></td><td>Build version, commit hash, startup time</td><td>JSON info object</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Business Metrics Exposed</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Metric</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>patient.registrations.total</code></td><td>Total successful patient registrations</td></tr>
+            <tr><td><code>patient.searches.total</code></td><td>Total search operations executed</td></tr>
+            <tr><td><code>patient.updates.total</code></td><td>Total patient record updates</td></tr>
+            <tr><td><code>patient.status_changes.total</code></td><td>Total activate/deactivate operations</td></tr>
+            <tr><td><code>db.pool.active / idle / pending</code></td><td>HikariCP connection pool stats</td></tr>
+            <tr><td><code>http.server.requests</code></td><td>Request count, latency histogram per endpoint</td></tr>
+            <tr><td><code>auth.circuit_breaker.state</code></td><td>Auth Module circuit breaker state</td></tr>
+            <tr><td><code>jvm.memory.used / jvm.gc.pause</code></td><td>JVM health metrics</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>Structured Log Fields (JSON via Logback)</h3>
+      <p>All logs are structured JSON to stdout. The following MDC fields are included on every entry:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Field</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td><code>timestamp</code></td><td>ISO-8601 UTC</td></tr>
+            <tr><td><code>level</code></td><td>INFO, WARN, ERROR, DEBUG</td></tr>
+            <tr><td><code>service</code></td><td>patient-module</td></tr>
+            <tr><td><code>traceId</code></td><td>Unique request trace identifier</td></tr>
+            <tr><td><code>userId</code></td><td>Authenticated user identity (MUST NOT be PHI)</td></tr>
+            <tr><td><code>operation</code></td><td>Logical operation (e.g., REGISTER_PATIENT, SEARCH_PATIENTS)</td></tr>
+            <tr><td><code>patientId</code></td><td>Patient ID affected (if applicable — NOT other PHI)</td></tr>
+            <tr><td><code>durationMs</code></td><td>Request processing time in milliseconds</td></tr>
+            <tr><td><code>message</code></td><td>Human-readable log message</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- ─── PHASES ────────────────────────────────────────────── -->
+    <div id="phases" class="section section-anchor">
+      <h2>Implementation Phases (106 Tasks)</h2>
+      <div class="phase-list">
+        <div class="phase-item">
+          <div class="phase-num">1</div>
+          <div class="phase-content">
+            <div class="phase-title">Setup — Project Skeleton</div>
+            <div class="phase-desc">docker-compose.yml, .env.example, nginx.conf, backend pom.xml, frontend package.json, Dockerfiles, scripts (certs, backup, restore, healthcheck)</div>
+            <div class="phase-tasks">T001–T016 · 16 tasks · All parallelizable</div>
+          </div>
+        </div>
+        <div class="phase-item">
+          <div class="phase-num">2</div>
+          <div class="phase-content">
+            <div class="phase-title">Foundational — Blocking Prerequisites</div>
+            <div class="phase-desc">Flyway migrations (V1–V4), JPA entities, repositories, DTOs, custom validators, MapStruct mapper, exception handler, security (JwtAuthFilter, RoleGuard, AuthContext), AuditService, configs (HikariCP, CircuitBreaker, OpenAPI), frontend routing + API client</div>
+            <div class="phase-tasks">T017–T050 · 34 tasks · Migrations sequential V1→V4, rest parallelizable · <strong>BLOCKS all user stories</strong></div>
+          </div>
+        </div>
+        <div class="phase-item">
+          <div class="phase-num">3</div>
+          <div class="phase-content">
+            <div class="phase-title">US1 — Register a New Patient <span class="badge badge-red" style="margin-left:8px;">MVP</span></div>
+            <div class="phase-desc">PatientIdGeneratorService, PatientService.registerPatient(), POST /patients, PatientRegistrationForm, PatientRegistrationPage</div>
+            <div class="phase-tasks">T051–T063 · 13 tasks</div>
+          </div>
+        </div>
+        <div class="phase-item">
+          <div class="phase-num">4</div>
+          <div class="phase-content">
+            <div class="phase-title">US2 — Search and Filter Patients</div>
+            <div class="phase-desc">PatientRepository search query, PatientService.searchPatients(), GET /patients, SearchBox, FilterBar, PatientList, Pagination, useListState (session storage)</div>
+            <div class="phase-tasks">T064–T077 · 14 tasks</div>
+          </div>
+        </div>
+        <div class="phase-item">
+          <div class="phase-num">5</div>
+          <div class="phase-content">
+            <div class="phase-title">US3 — View Patient Profile</div>
+            <div class="phase-desc">PatientService.getPatient(), GET /patients/{id}, PatientProfile component, PatientStatusBadge, PatientProfilePage</div>
+            <div class="phase-tasks">T078–T086 · 9 tasks</div>
+          </div>
+        </div>
+        <div class="phase-item">
+          <div class="phase-num">6</div>
+          <div class="phase-content">
+            <div class="phase-title">US4 — Update Patient Information</div>
+            <div class="phase-desc">PatientService.updatePatient() with optimistic locking, PUT /patients/{id} with If-Match header, PatientEditForm</div>
+            <div class="phase-tasks">T087–T092 · 6 tasks</div>
+          </div>
+        </div>
+        <div class="phase-item">
+          <div class="phase-num">7</div>
+          <div class="phase-content">
+            <div class="phase-title">US5 — Manage Patient Status</div>
+            <div class="phase-desc">PatientService.changePatientStatus(), PATCH /patients/{id}/status, DeactivateConfirmModal, PatientProfile status buttons</div>
+            <div class="phase-tasks">T093–T098 · 6 tasks</div>
+          </div>
+        </div>
+        <div class="phase-item">
+          <div class="phase-num">8</div>
+          <div class="phase-content">
+            <div class="phase-title">Polish &amp; Cross-Cutting Concerns</div>
+            <div class="phase-desc">PatientRbacIT (full role matrix), Micrometer metrics instrumentation, PostgreSQL tuning config, responsive UI (mobile/tablet/desktop), WCAG 2.1 AA ARIA attributes, graceful shutdown config, end-to-end quickstart validation, final commit &amp; push</div>
+            <div class="phase-tasks">T099–T106 · 8 tasks</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── QUICKSTART ────────────────────────────────────────── -->
+    <div id="quickstart" class="section section-anchor">
+      <h2>Quickstart Guide</h2>
+      <div class="callout callout-success">
+        <strong>Time to running:</strong> ~3 minutes on first run, ~30 seconds on subsequent runs.
+        No Java, Node, Maven, or PostgreSQL installations required on the host machine — everything runs inside Docker.
+      </div>
+
+      <h3>Prerequisites</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Tool</th><th>Version</th></tr></thead>
+          <tbody>
+            <tr><td>Docker Desktop</td><td>4.x+</td></tr>
+            <tr><td>Docker Compose</td><td>v2.x (bundled with Docker Desktop)</td></tr>
+            <tr><td>Git</td><td>Any</td></tr>
+            <tr><td>OpenSSL</td><td>Any (pre-installed on macOS/Linux) — for cert generation</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Step 1: Clone and Configure</h3>
+      <pre><code>git clone &lt;repo-url&gt;
+cd Hospital_patient_model
+cp .env.example .env
+# Edit .env — set DB_PASSWORD and JWT_SECRET at minimum</code></pre>
+
+      <h3>Step 2: Generate TLS Certificates</h3>
+      <pre><code>bash scripts/generate-certs.sh
+# Creates nginx/ssl/cert.pem and nginx/ssl/key.pem</code></pre>
+
+      <h3>Step 3: Start the Stack</h3>
+      <pre><code>docker compose up --build</code></pre>
+
+      <h3>Step 4: Verify</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Check</th><th>URL</th><th>Expected</th></tr></thead>
+          <tbody>
+            <tr><td>Application UI</td><td>https://localhost</td><td>Patient list page</td></tr>
+            <tr><td>API health</td><td>https://localhost/api/v1/actuator/health</td><td><code>{"status":"UP"}</code></td></tr>
+            <tr><td>API readiness</td><td>https://localhost/api/v1/actuator/health/readiness</td><td><code>{"status":"UP"}</code></td></tr>
+            <tr><td>Swagger UI</td><td>https://localhost/api/v1/swagger-ui.html</td><td>Interactive API docs</td></tr>
+            <tr><td>PgAdmin (optional)</td><td>http://localhost:5050</td><td>PostgreSQL GUI</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Step 5: First API Call</h3>
+      <pre><code>TOKEN="your-jwt-here"
+
+# Register a patient
+curl -X POST https://localhost/api/v1/patients \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -k \
+  -d '{
+    "firstName": "Jane",
+    "lastName": "Smith",
+    "dateOfBirth": "1985-06-15",
+    "gender": "FEMALE",
+    "phone": "555-123-4567"
+  }'
+# Response: {"patientId":"P2026001","message":"Patient registered successfully. Patient ID: P2026001"}
+
+# Search patients
+curl -X GET "https://localhost/api/v1/patients?query=Smith&status=ACTIVE" \
+  -H "Authorization: Bearer $TOKEN" -k</code></pre>
+
+      <h3>Common Commands</h3>
+      <pre><code># Run backend unit tests (no Docker DB needed)
+cd backend && mvn test
+
+# Run backend integration tests (Testcontainers — requires Docker)
+cd backend && mvn verify -Pfailsafe
+
+# Run frontend tests
+cd frontend && npm test
+
+# View backend logs
+docker compose logs -f backend
+
+# Stop stack (preserves data volumes)
+docker compose down
+
+# Wipe all data and restart fresh
+docker compose down --volumes && docker compose up --build
+
+# Run all health checks
+bash scripts/healthcheck.sh
+
+# Backup the database
+bash scripts/backup.sh
+
+# Connect to PostgreSQL directly (dev)
+docker compose exec db psql -U patient_app -d hospital_patients</code></pre>
+    </div>
+
+    <!-- ─── SUCCESS CRITERIA ──────────────────────────────────── -->
+    <div id="success" class="section section-anchor">
+      <h2>Success Criteria</h2>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>ID</th><th>Measurable Outcome</th></tr></thead>
+          <tbody>
+            <tr><td><span class="badge badge-green">SC-001</span></td><td>Receptionists complete new patient registration in under 3 minutes.</td></tr>
+            <tr><td><span class="badge badge-green">SC-002</span></td><td>Any authenticated staff member locates a specific patient in under 5 seconds.</td></tr>
+            <tr><td><span class="badge badge-green">SC-003</span></td><td>Search results return within 2 seconds at p95 across 100,000 records.</td></tr>
+            <tr><td><span class="badge badge-green">SC-004</span></td><td>System sustains &gt;100,000 API requests per hour at &lt;0.1% error rate.</td></tr>
+            <tr><td><span class="badge badge-green">SC-005</span></td><td>System achieves ≥99.9% monthly uptime (max 43.8 minutes downtime/month).</td></tr>
+            <tr><td><span class="badge badge-green">SC-006</span></td><td>System recovers from a container failure within 5 minutes (RTO ≤ 5 min).</td></tr>
+            <tr><td><span class="badge badge-green">SC-007</span></td><td>System loses at most 1 hour of data on catastrophic failure (RPO ≤ 1 hour).</td></tr>
+            <tr><td><span class="badge badge-green">SC-008</span></td><td>Zero duplicate Patient IDs produced under any concurrent load.</td></tr>
+            <tr><td><span class="badge badge-green">SC-009</span></td><td>Zero patient records permanently deleted — all deactivations are reversible.</td></tr>
+            <tr><td><span class="badge badge-green">SC-010</span></td><td>Every write operation produces a traceable, immutable audit log entry.</td></tr>
+            <tr><td><span class="badge badge-green">SC-011</span></td><td>Unauthorized access attempts are rejected 100% of the time (0 false passes).</td></tr>
+            <tr><td><span class="badge badge-green">SC-012</span></td><td>The entire local stack starts from <code>docker compose up</code> in under 2 minutes.</td></tr>
+            <tr><td><span class="badge badge-green">SC-013</span></td><td>All 5 user stories are independently functional and testable.</td></tr>
+            <tr><td><span class="badge badge-green">SC-014</span></td><td>The registration form renders correctly on desktop, tablet, and mobile.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ─── FUTURE MODULES ────────────────────────────────────── -->
+    <div id="future" class="section section-anchor">
+      <h2>Future Modules (Out of Scope)</h2>
+      <p>The Patient Module is a hard dependency for all of the following planned hospital system modules:</p>
+      <div class="card-grid">
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Auth Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Login, logout, JWT issuance, role assignment</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Appointment Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Scheduling and calendar management</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">EMR Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Medical records, clinical notes, prescriptions</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Pharmacy Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Medications and dispensing</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Laboratory Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Lab results and reports</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Radiology Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Imaging and scan results</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Billing Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Invoicing and insurance</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Patient Portal</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Patient self-service interface</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Document Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">File and document upload/storage</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Notification Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Alerts, reminders, and messaging</div>
+        </div>
+        <div class="stat-card" style="padding:16px 20px;">
+          <div class="stat-label">Reporting Module</div>
+          <div style="font-size:13px;color:#334155;margin-top:4px;">Analytics, dashboards, and data exports</div>
+        </div>
+      </div>
+
+      <div class="callout callout-info" style="margin-top:24px;">
+        <strong>Note:</strong> None of the above modules are specced or implemented. The Patient Module serves as the shared entity registry for all of them — no patient record in any downstream module can exist without a corresponding entry in this module.
+      </div>
+    </div>
+
+    <!-- ─── FOOTER ────────────────────────────────────────────── -->
+    <div class="divider"></div>
+    <p class="text-muted" style="text-align:center;padding-bottom:32px;">
+      Hospital Management System · Patient Module Spec v3.0.0 · Ai Nexus · Generated 2026-02-20
+      &nbsp;·&nbsp; Branch: <code>001-patient-module</code> · Status: Frozen &amp; merged to main
+    </p>
+
+  </main>
+</div>
+</body>
+</html>

@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -33,6 +34,36 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorBody(
                 400, "Bad Request", "Validation failed", fieldErrors
         ));
+    }
+
+    @ExceptionHandler(AccountLockedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountLocked(AccountLockedException ex) {
+        return ResponseEntity.status(423)
+                .body(errorBody(423, "Locked", ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(errorBody(401, "Unauthorized", ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(UsernameConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleUsernameConflict(UsernameConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody(409, "Conflict", ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(VersionConflictException.class)
+    public ResponseEntity<Map<String, Object>> handleVersionConflict(VersionConflictException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody(409, "Conflict", ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleResourceNotFound(ResourceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(errorBody(404, "Not Found", ex.getMessage(), null));
     }
 
     @ExceptionHandler(PatientNotFoundException.class)
