@@ -40,6 +40,10 @@ spring:
     baseline-on-migrate: false
     validate-on-migrate: true
 
+  jackson:
+    serialization:
+      write-big-decimal-as-plain: true
+
 # ── Actuator / Health / Metrics ────────────────────────────────────────────
 management:
   endpoints:
@@ -84,7 +88,10 @@ logging:
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
 
-# ── SpringDoc OpenAPI ────────────────────────────────────────────────────────
+# ── Billing ──────────────────────────────────────────────────────────────────
+billing:
+  tax-rate: ${BILLING_TAX_RATE:0.00}
+
 springdoc:
   api-docs:
     path: /api-docs

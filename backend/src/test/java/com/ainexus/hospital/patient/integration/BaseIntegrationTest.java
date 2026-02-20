@@ -18,6 +18,7 @@ import org.testcontainers.containers.PostgreSQLContainer;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -71,6 +72,13 @@ public abstract class BaseIntegrationTest {
                 .setRequestFactory(new HttpComponentsClientHttpRequestFactory(HttpClients.createDefault()));
 
         // Clean in reverse FK dependency order
+        // Module 4 billing tables (dependent on appointments and patients)
+        jdbcTemplate.execute("TRUNCATE TABLE invoice_audit_log RESTART IDENTITY CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE invoice_payments RESTART IDENTITY CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE invoice_line_items RESTART IDENTITY CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE invoice_id_sequences CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE invoices CASCADE");
+
         // Module 3 tables (dependent on appointments and patients)
         jdbcTemplate.execute("TRUNCATE TABLE clinical_notes CASCADE");
         jdbcTemplate.execute("TRUNCATE TABLE appointment_audit_log RESTART IDENTITY CASCADE");
@@ -205,5 +213,55 @@ public abstract class BaseIntegrationTest {
         headers.setBearerAuth(buildTestJwtWithUserId(role, userId, username));
         headers.setContentType(MediaType.APPLICATION_JSON);
         return headers;
+    }
+
+    // ── Module 4 seed helpers ─────────────────────────────────────────────────
+
+    /**
+     * Seeds a COMPLETED appointment directly in the DB and returns its ID.
+     * Uses a 2025 appointment ID to avoid conflicts with the ID generator (APT2026xxx).
+     * doctorId should be the userId of a seeded doctor (e.g. "U2025001").
+     */
+    protected String seedAppointment(String patientId, String doctorId, LocalDate date) {
+        int hash = Math.abs((patientId + doctorId + date).hashCode()) % 9000 + 1000;
+        String apptId = "APT2025" + String.format("%04d", hash % 10000);
+        jdbcTemplate.update("""
+                INSERT INTO appointments
+                  (appointment_id, patient_id, doctor_id, appointment_date, start_time, end_time,
+                   duration_minutes, type, status, reason, version, created_at, updated_at, created_by, updated_by)
+                VALUES (?, ?, ?, ?, '09:00', '09:30', 30, 'GENERAL_CONSULTATION', 'COMPLETED', 'Test', 0, NOW(), NOW(), 'test', 'test')
+                ON CONFLICT (appointment_id) DO NOTHING
+                """, apptId, patientId, doctorId, date);
+        return apptId;
+    }
+
+    /**
+     * Creates an invoice via REST (RECEPTIONIST token) and returns the invoiceId.
+     * The appointment must already exist in the DB.
+     */
+    protected String createInvoice(String appointmentId, double unitPrice) {
+        Map<String, Object> body = Map.of(
+                "appointmentId", appointmentId,
+                "lineItems", List.of(Map.of(
+                        "description", "Test Service",
+                        "quantity", 1,
+                        "unitPrice", unitPrice
+                ))
+        );
+        ResponseEntity<Map> resp = restTemplate.exchange(
+                baseUrl("/api/v1/invoices"),
+                HttpMethod.POST,
+                new HttpEntity<>(body, authHeaders("RECEPTIONIST")),
+                Map.class);
+        return (String) resp.getBody().get("invoiceId");
+    }
+
+    /**
+     * Directly updates invoice status in the DB to the given status string.
+     * Useful for setting up test preconditions without going through the API.
+     */
+    protected void setInvoiceStatus(String invoiceId, String status) {
+        jdbcTemplate.update("UPDATE invoices SET status = ?, updated_at = NOW() WHERE invoice_id = ?",
+                status, invoiceId);
     }
 }

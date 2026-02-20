@@ -92,6 +92,18 @@ public class GlobalExceptionHandler {
                 .body(errorBody(409, "Conflict", ex.getMessage(), null));
     }
 
+    @ExceptionHandler(InvoiceNotFoundException.class)
+    public ResponseEntity<Map<String, Object>> handleInvoiceNotFound(InvoiceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(errorBody(404, "Not Found", ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(InvalidInvoiceTransitionException.class)
+    public ResponseEntity<Map<String, Object>> handleInvalidInvoiceTransition(InvalidInvoiceTransitionException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(errorBody(409, "Conflict", ex.getMessage(), null));
+    }
+
     @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
     public ResponseEntity<Map<String, Object>> handleOptimisticLock(ObjectOptimisticLockingFailureException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)

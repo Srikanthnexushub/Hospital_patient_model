@@ -7,6 +7,8 @@ Auto-generated from feature plans. Last updated: 2026-02-19
 - PostgreSQL 15 (same Docker container as Patient Module). (002-auth-module)
 - Java 17 (backend), JavaScript ES2022 (frontend) + Spring Boot 3.2.3, Spring Data JPA / Hibernate 6, Spring Security 6, MapStruct 1.5.5, Lombok 1.18.38, Resilience4j 2.2.0, Micrometer Prometheus, jjwt 0.12.5, React 18, TanStack Query v5, React Hook Form, Zod, Tailwind CSS — **all pre-existing; zero new dependencies required** (003-appointment-scheduling)
 - PostgreSQL 15 — 4 new tables via Flyway V8–V11 (003-appointment-scheduling)
+- Java 17, Spring Boot 3.2.x + Spring Data JPA, Spring Security (RoleGuard/AuthContext from Module 2), Flyway, MapStruct, Lombok, Micrometer (MeterRegistry) (004-billing-module)
+- PostgreSQL 15 — new tables V12–V16 via Flyway; existing V1–V11 untouched (004-billing-module)
 
 | Layer | Technology |
 |---|---|
@@ -74,6 +76,7 @@ bash scripts/generate-certs.sh
 5. **RBAC** — server-side role check on EVERY endpoint; client-side checks are cosmetic
 
 ## Recent Changes
+- 004-billing-module: Added Java 17, Spring Boot 3.2.x + Spring Data JPA, Spring Security (RoleGuard/AuthContext from Module 2), Flyway, MapStruct, Lombok, Micrometer (MeterRegistry)
 - `003-appointment-scheduling`: Appointment Scheduling Module — full appointment lifecycle (US1–US7)
   - **appointmentId format**: `APT` + year + 4-digit zero-padded seq (e.g. `APT20260001`)
   - **Status machine**: SCHEDULED → CONFIRMED → CHECKED_IN → IN_PROGRESS → COMPLETED; CANCELLED/NO_SHOW are terminal; transitions enforced in `AppointmentStatusService`
@@ -96,7 +99,6 @@ bash scripts/generate-certs.sh
   - **Java records as DTOs**: Accessor methods are `field()` not `getField()` — `request.username()`, `request.password()`
   - **AccountLockedException** → HTTP 423; **BadCredentialsException** → HTTP 401
 
-- `001-patient-module`: Initial patient module — registration, search, profile, update, status management
 
 <!-- MANUAL ADDITIONS START -->
 <!-- MANUAL ADDITIONS END -->

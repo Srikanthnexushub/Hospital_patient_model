@@ -18,6 +18,9 @@ app:
     # Test key: 32 bytes of zeros encoded as base64 (for test only — never use in prod)
     encryption-key: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="
 
+billing:
+  tax-rate: 0.00
+
 # Suppress verbose startup logs in tests
 logging:
   level:

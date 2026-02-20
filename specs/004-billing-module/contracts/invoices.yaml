@@ -1,0 +1,820 @@
+openapi: 3.0.3
+info:
+  title: Billing & Invoicing API
+  description: Module 4 — Invoice lifecycle management for the Hospital Management System
+  version: 1.0.0
+
+servers:
+  - url: /api/v1
+
+tags:
+  - name: Invoices
+    description: Invoice generation, retrieval, and lifecycle management
+  - name: Payments
+    description: Payment recording against invoices
+  - name: Reports
+    description: Financial summary reporting (ADMIN only)
+
+paths:
+
+  # ─────────────────────────────────────────────────────────────────────────────
+  # US1 — Generate Invoice
+  # US2 — Search / List Invoices
+  # ─────────────────────────────────────────────────────────────────────────────
+
+  /invoices:
+    post:
+      tags: [Invoices]
+      summary: Create a new invoice (US1)
+      description: |
+        Generates an invoice for a completed or in-progress appointment.
+        - Roles allowed: RECEPTIONIST, ADMIN
+        - One invoice per appointment; duplicate rejected with 409
+        - Invoice starts in DRAFT status
+        - All monetary fields computed server-side from line items, discount, and tax rate
+      operationId: createInvoice
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInvoiceRequest'
+            examples:
+              basic:
+                summary: Two line items, 10% discount
+                value:
+                  appointmentId: "APT2026000001"
+                  lineItems:
+                    - description: "General Consultation"
+                      quantity: 1
+                      unitPrice: 200.00
+                      serviceCode: "CONS001"
+                    - description: "Blood Panel"
+                      quantity: 2
+                      unitPrice: 150.00
+                      serviceCode: "LAB002"
+                  discountPercent: 10.00
+                  notes: "Patient has insurance coverage"
+      responses:
+        '201':
+          description: Invoice created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetailResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Appointment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 404
+                error: "Not Found"
+                message: "Appointment APT2026000001 not found"
+        '409':
+          description: Invoice already exists for this appointment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                error: "Conflict"
+                message: "An invoice already exists for appointment APT2026000001"
+
+    get:
+      tags: [Invoices]
+      summary: List and filter invoices (US2)
+      description: |
+        Returns a paginated list of invoices sorted by createdAt DESC.
+        - RECEPTIONIST / ADMIN: all invoices
+        - DOCTOR: only invoices for appointments where they are the assigned doctor
+        - NURSE: 403 Forbidden
+      operationId: listInvoices
+      parameters:
+        - name: patientId
+          in: query
+          schema:
+            type: string
+            example: "P2026001"
+        - name: appointmentId
+          in: query
+          schema:
+            type: string
+            example: "APT2026000001"
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/InvoiceStatus'
+        - name: dateFrom
+          in: query
+          description: Filter invoices created on or after this date (inclusive). ISO-8601 date.
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: dateTo
+          in: query
+          description: Filter invoices created on or before this date (inclusive). ISO-8601 date.
+          schema:
+            type: string
+            format: date
+            example: "2026-01-31"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Paginated invoice list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedInvoiceSummaryResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /invoices/{invoiceId}:
+    get:
+      tags: [Invoices]
+      summary: Get full invoice detail (US2)
+      description: |
+        Returns the invoice with all line items and complete payment history.
+        - RECEPTIONIST / ADMIN: any invoice
+        - DOCTOR: only if they are the doctor on the linked appointment
+        - NURSE: 403 Forbidden
+      operationId: getInvoice
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Full invoice detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetailResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /invoices/{invoiceId}/payments:
+    post:
+      tags: [Payments]
+      summary: Record a payment against an invoice (US3)
+      description: |
+        Records a payment and atomically updates amountPaid, amountDue, and status.
+        - Status auto-transitions: amountDue > 0 → PARTIALLY_PAID; amountDue ≤ 0 → PAID
+        - Overpayments accepted (amountDue may go negative)
+        - Allowed only on ISSUED or PARTIALLY_PAID invoices
+        - Roles allowed: RECEPTIONIST, ADMIN
+      operationId: recordPayment
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordPaymentRequest'
+            examples:
+              cashPayment:
+                summary: Full cash payment
+                value:
+                  amount: 270.00
+                  paymentMethod: "CASH"
+              partialCard:
+                summary: Partial card payment
+                value:
+                  amount: 100.00
+                  paymentMethod: "CARD"
+                  referenceNumber: "AUTH-789XYZ"
+                  notes: "Visa ending 4242"
+      responses:
+        '200':
+          description: Payment recorded; returns updated invoice with payment appended
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetailResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Invoice is not in a payable status (DRAFT, CANCELLED, WRITTEN_OFF, or PAID)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                error: "Conflict"
+                message: "Cannot record payment against a CANCELLED invoice"
+
+  /invoices/{invoiceId}/status:
+    patch:
+      tags: [Invoices]
+      summary: Cancel or write off an invoice (US4)
+      description: |
+        Transitions the invoice to CANCELLED or WRITTEN_OFF status.
+        - CANCEL: from DRAFT or ISSUED only
+        - WRITE_OFF: from ISSUED or PARTIALLY_PAID only
+        - Reason is mandatory for both actions
+        - Roles allowed: ADMIN only
+      operationId: updateInvoiceStatus
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvoiceStatusUpdateRequest'
+            examples:
+              cancel:
+                summary: Cancel a draft invoice
+                value:
+                  action: "CANCEL"
+                  reason: "Created in error — wrong appointment selected"
+              writeOff:
+                summary: Write off uncollectable debt
+                value:
+                  action: "WRITE_OFF"
+                  reason: "Patient deceased — debt deemed uncollectable"
+      responses:
+        '200':
+          description: Invoice status updated; returns updated invoice
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InvoiceDetailResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Invalid status transition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                status: 409
+                error: "Conflict"
+                message: "Cannot CANCEL an invoice in PAID status"
+
+  /patients/{patientId}/invoices:
+    get:
+      tags: [Invoices]
+      summary: List all invoices for a specific patient (US2)
+      description: |
+        Returns paginated invoices for the given patient, sorted by createdAt DESC.
+        - RECEPTIONIST / ADMIN: allowed for any patient
+        - DOCTOR: only if patient has at least one appointment with them
+        - NURSE: 403 Forbidden
+      operationId: listPatientInvoices
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "P2026001"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Paginated invoice list for the patient
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedInvoiceSummaryResponse'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Patient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /reports/financial:
+    get:
+      tags: [Reports]
+      summary: Financial summary report (US5)
+      description: |
+        Returns aggregated financial metrics for the given date range (applied to invoice createdAt).
+        - Overdue: ISSUED or PARTIALLY_PAID where linked appointment date < today
+        - Roles allowed: ADMIN only
+        - Empty date range returns all-zero response (no error)
+      operationId: getFinancialReport
+      parameters:
+        - name: dateFrom
+          in: query
+          required: true
+          description: Start of date range (inclusive). ISO-8601 date.
+          schema:
+            type: string
+            format: date
+            example: "2026-01-01"
+        - name: dateTo
+          in: query
+          required: true
+          description: End of date range (inclusive). ISO-8601 date.
+          schema:
+            type: string
+            format: date
+            example: "2026-01-31"
+      responses:
+        '200':
+          description: Financial summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FinancialReportResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Components
+# ─────────────────────────────────────────────────────────────────────────────
+
+components:
+
+  parameters:
+    InvoiceId:
+      name: invoiceId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^INV\d{4}\d{5}$'
+        example: "INV2026000001"
+
+  responses:
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorResponse'
+    Forbidden:
+      description: Authenticated user does not have the required role
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 403
+            error: "Forbidden"
+            message: "Access denied"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            status: 404
+            error: "Not Found"
+            message: "Invoice INV2026000001 not found"
+
+  schemas:
+
+    # ── Enums ──────────────────────────────────────────────────────────────────
+
+    InvoiceStatus:
+      type: string
+      enum: [DRAFT, ISSUED, PARTIALLY_PAID, PAID, CANCELLED, WRITTEN_OFF]
+
+    PaymentMethod:
+      type: string
+      enum: [CASH, CARD, INSURANCE, BANK_TRANSFER, CHEQUE]
+
+    InvoiceAction:
+      type: string
+      enum: [CANCEL, WRITE_OFF]
+
+    # ── Request Schemas ────────────────────────────────────────────────────────
+
+    CreateInvoiceRequest:
+      type: object
+      required: [appointmentId, lineItems]
+      properties:
+        appointmentId:
+          type: string
+          description: Must reference an existing appointment
+          example: "APT2026000001"
+        lineItems:
+          type: array
+          minItems: 1
+          items:
+            $ref: '#/components/schemas/LineItemRequest'
+        discountPercent:
+          type: number
+          format: decimal
+          minimum: 0.00
+          maximum: 100.00
+          default: 0.00
+          example: 10.00
+        notes:
+          type: string
+          nullable: true
+          example: "Insurance coverage applies"
+
+    LineItemRequest:
+      type: object
+      required: [description, quantity, unitPrice]
+      properties:
+        description:
+          type: string
+          minLength: 1
+          example: "General Consultation"
+        quantity:
+          type: integer
+          minimum: 1
+          example: 1
+        unitPrice:
+          type: number
+          format: decimal
+          exclusiveMinimum: 0
+          example: 200.00
+        serviceCode:
+          type: string
+          maxLength: 20
+          nullable: true
+          example: "CONS001"
+
+    RecordPaymentRequest:
+      type: object
+      required: [amount, paymentMethod]
+      properties:
+        amount:
+          type: number
+          format: decimal
+          exclusiveMinimum: 0
+          example: 270.00
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        referenceNumber:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: "AUTH-789XYZ"
+        notes:
+          type: string
+          nullable: true
+
+    InvoiceStatusUpdateRequest:
+      type: object
+      required: [action, reason]
+      properties:
+        action:
+          $ref: '#/components/schemas/InvoiceAction'
+        reason:
+          type: string
+          minLength: 1
+          description: Mandatory explanation for the status change
+          example: "Created in error"
+
+    # ── Response Schemas ───────────────────────────────────────────────────────
+
+    InvoiceDetailResponse:
+      type: object
+      properties:
+        invoiceId:
+          type: string
+          example: "INV2026000001"
+        appointmentId:
+          type: string
+          example: "APT2026000001"
+        appointmentDate:
+          type: string
+          format: date
+          example: "2026-02-20"
+        patientId:
+          type: string
+          example: "P2026001"
+        patientName:
+          type: string
+          example: "John Doe"
+        doctorId:
+          type: string
+          example: "drsmith"
+        doctorName:
+          type: string
+          example: "Dr. Jane Smith"
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+        totalAmount:
+          type: number
+          format: decimal
+          description: Sum of all line item totals
+          example: 500.00
+        discountPercent:
+          type: number
+          format: decimal
+          example: 10.00
+        discountAmount:
+          type: number
+          format: decimal
+          example: 50.00
+        netAmount:
+          type: number
+          format: decimal
+          description: totalAmount − discountAmount
+          example: 450.00
+        taxRate:
+          type: number
+          format: decimal
+          example: 0.00
+        taxAmount:
+          type: number
+          format: decimal
+          example: 0.00
+        amountDue:
+          type: number
+          format: decimal
+          description: Current outstanding balance (decreases with payments)
+          example: 450.00
+        amountPaid:
+          type: number
+          format: decimal
+          example: 0.00
+        notes:
+          type: string
+          nullable: true
+        cancelReason:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          example: 0
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+          example: "receptionist1"
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+        lineItems:
+          type: array
+          items:
+            $ref: '#/components/schemas/LineItemResponse'
+        payments:
+          type: array
+          items:
+            $ref: '#/components/schemas/PaymentResponse'
+
+    InvoiceSummaryResponse:
+      type: object
+      description: Compact invoice representation for list views
+      properties:
+        invoiceId:
+          type: string
+          example: "INV2026000001"
+        appointmentId:
+          type: string
+          example: "APT2026000001"
+        patientId:
+          type: string
+          example: "P2026001"
+        patientName:
+          type: string
+          example: "John Doe"
+        doctorId:
+          type: string
+          example: "drsmith"
+        status:
+          $ref: '#/components/schemas/InvoiceStatus'
+        totalAmount:
+          type: number
+          format: decimal
+          example: 500.00
+        amountDue:
+          type: number
+          format: decimal
+          example: 450.00
+        amountPaid:
+          type: number
+          format: decimal
+          example: 50.00
+        createdAt:
+          type: string
+          format: date-time
+
+    LineItemResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        serviceCode:
+          type: string
+          nullable: true
+          example: "CONS001"
+        description:
+          type: string
+          example: "General Consultation"
+        quantity:
+          type: integer
+          example: 1
+        unitPrice:
+          type: number
+          format: decimal
+          example: 200.00
+        lineTotal:
+          type: number
+          format: decimal
+          example: 200.00
+
+    PaymentResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        amount:
+          type: number
+          format: decimal
+          example: 100.00
+        paymentMethod:
+          $ref: '#/components/schemas/PaymentMethod'
+        referenceNumber:
+          type: string
+          nullable: true
+          example: "AUTH-789XYZ"
+        notes:
+          type: string
+          nullable: true
+        paidAt:
+          type: string
+          format: date-time
+        recordedBy:
+          type: string
+          example: "receptionist1"
+
+    PagedInvoiceSummaryResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/InvoiceSummaryResponse'
+        page:
+          type: integer
+          example: 0
+        size:
+          type: integer
+          example: 20
+        totalElements:
+          type: integer
+          format: int64
+          example: 157
+        totalPages:
+          type: integer
+          example: 8
+
+    FinancialReportResponse:
+      type: object
+      properties:
+        dateFrom:
+          type: string
+          format: date
+          example: "2026-01-01"
+        dateTo:
+          type: string
+          format: date
+          example: "2026-01-31"
+        totalInvoiced:
+          type: number
+          format: decimal
+          description: Sum of totalAmount across all invoices in range
+          example: 25000.00
+        totalCollected:
+          type: number
+          format: decimal
+          description: Sum of all payments recorded in range
+          example: 18500.00
+        totalOutstanding:
+          type: number
+          format: decimal
+          description: Sum of amountDue for ISSUED and PARTIALLY_PAID invoices
+          example: 4200.00
+        totalWrittenOff:
+          type: number
+          format: decimal
+          description: Sum of netAmount for WRITTEN_OFF invoices in range
+          example: 1500.00
+        totalCancelled:
+          type: number
+          format: decimal
+          description: Sum of totalAmount for CANCELLED invoices in range
+          example: 800.00
+        invoiceCount:
+          type: integer
+          example: 85
+        paidCount:
+          type: integer
+          example: 62
+        partialCount:
+          type: integer
+          description: Count of PARTIALLY_PAID invoices
+          example: 8
+        overdueCount:
+          type: integer
+          description: Count of ISSUED/PARTIALLY_PAID invoices where appointmentDate < today
+          example: 5
+        byPaymentMethod:
+          type: object
+          description: Total collected per payment method
+          additionalProperties:
+            type: number
+            format: decimal
+          example:
+            CASH: 8000.00
+            CARD: 7500.00
+            INSURANCE: 2500.00
+            BANK_TRANSFER: 500.00
+            CHEQUE: 0.00
+
+    # ── Error Schemas ──────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 404
+        error:
+          type: string
+          example: "Not Found"
+        message:
+          type: string
+          example: "Invoice INV2026000001 not found"
+        timestamp:
+          type: string
+          format: date-time
+
+    ValidationErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: "Bad Request"
+        message:
+          type: string
+          example: "Validation failed"
+        fieldErrors:
+          type: object
+          additionalProperties:
+            type: string
+          example:
+            "lineItems[0].quantity": "must be greater than 0"
+            "discountPercent": "must be between 0 and 100"
+        timestamp:
+          type: string
+          format: date-time
