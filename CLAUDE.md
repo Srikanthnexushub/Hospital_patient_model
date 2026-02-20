@@ -72,7 +72,17 @@ bash scripts/generate-certs.sh
 5. **RBAC** — server-side role check on EVERY endpoint; client-side checks are cosmetic
 
 ## Recent Changes
-- 002-auth-module: Added Java 17 (backend), JavaScript/Node 20 LTS (frontend)
+
+- `002-auth-module`: Auth Module — JWT-backed staff login, token refresh/revoke, user management (ADMIN only)
+  - **BCrypt-12**: `PasswordConfig` exposes `@Bean PasswordEncoder` → `new BCryptPasswordEncoder(12)`
+  - **Filter order**: `addFilterBefore(blacklistCheckFilter, UsernamePasswordAuthenticationFilter.class)` THEN `addFilterBefore(jwtAuthFilter, ...)` — both anchored to `UsernamePasswordAuthenticationFilter`, insertion order makes blacklist run first; custom filters cannot be used as anchors
+  - **JwtAuthFilter skip**: Only `/api/v1/auth/login` is skipped — refresh/logout/me all require a valid token
+  - **Lockout persistence**: `login()` annotated `@Transactional(noRollbackFor = {BadCredentialsException.class, AccountLockedException.class})` — without this, failed-attempt counter is rolled back on exception
+  - **AdminSeeder**: `ApplicationRunner` bean reads `ADMIN_INITIAL_PASSWORD` env var (NO default — startup fails if absent); hashes with BCrypt before insert
+  - **Staff IDs**: `U` + year + 3-digit zero-padded seq (e.g. `U2026001`) via `StaffIdGeneratorService`
+  - **Token blacklist cleanup**: `BlacklistCleanupService` runs `@Scheduled(cron = "0 */15 * * * *")` — requires `@EnableScheduling` in `SchedulingConfig`
+  - **Java records as DTOs**: Accessor methods are `field()` not `getField()` — `request.username()`, `request.password()`
+  - **AccountLockedException** → HTTP 423; **BadCredentialsException** → HTTP 401
 
 - `001-patient-module`: Initial patient module — registration, search, profile, update, status management
 
