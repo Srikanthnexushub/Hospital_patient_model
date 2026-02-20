@@ -8,6 +8,7 @@ import com.ainexus.hospital.patient.entity.HospitalUser;
 import com.ainexus.hospital.patient.exception.ForbiddenException;
 import com.ainexus.hospital.patient.exception.ResourceNotFoundException;
 import com.ainexus.hospital.patient.mapper.AppointmentMapper;
+import com.ainexus.hospital.patient.mapper.StaffMapper;
 import com.ainexus.hospital.patient.repository.AppointmentRepository;
 import com.ainexus.hospital.patient.repository.HospitalUserRepository;
 import com.ainexus.hospital.patient.repository.PatientRepository;
@@ -44,6 +45,7 @@ class DoctorAvailabilityServiceTest {
     @Mock private HospitalUserRepository hospitalUserRepository;
     @Mock private PatientRepository patientRepository;
     @Mock private AppointmentMapper mapper;
+    @Mock private StaffMapper staffMapper;
 
     // Real RoleGuard reads from AuthContext.Holder (ThreadLocal)
     private final RoleGuard roleGuard = new RoleGuard();
@@ -61,7 +63,7 @@ class DoctorAvailabilityServiceTest {
     void setUp() {
         availabilityService = new DoctorAvailabilityService(
                 appointmentRepository, hospitalUserRepository, patientRepository,
-                mapper, roleGuard
+                mapper, roleGuard, staffMapper
         );
     }
 

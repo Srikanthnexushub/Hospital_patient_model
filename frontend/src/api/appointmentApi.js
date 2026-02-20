@@ -56,6 +56,13 @@ export async function updateAppointment(appointmentId, data, version) {
   return response.data
 }
 
+// ── Doctor list (for booking form picker) ───────────────────────────────────
+
+export async function listDoctors() {
+  const response = await api.get('/doctors')
+  return response.data
+}
+
 // ── US5: Doctor Availability ────────────────────────────────────────────────
 
 export async function getDoctorAvailability(doctorId, date) {

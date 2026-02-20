@@ -5,6 +5,7 @@ import {
   getAppointment,
   getTodayAppointments,
   getDoctorSchedule,
+  listDoctors,
   changeAppointmentStatus,
   updateAppointment,
   getDoctorAvailability,
@@ -60,6 +61,16 @@ export function useDoctorSchedule(doctorId, date) {
     queryFn: () => getDoctorSchedule(doctorId, date),
     staleTime: 30_000,
     enabled: !!(doctorId && date),
+  })
+}
+
+// ── Doctor list (for booking form picker) ───────────────────────────────────
+
+export function useDoctors() {
+  return useQuery({
+    queryKey: ['doctors'],
+    queryFn: listDoctors,
+    staleTime: 5 * 60_000, // 5 min — doctors list rarely changes
   })
 }
 

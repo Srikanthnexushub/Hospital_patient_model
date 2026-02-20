@@ -3,6 +3,8 @@ package com.ainexus.hospital.patient.service;
 import com.ainexus.hospital.patient.dto.response.AppointmentSummaryResponse;
 import com.ainexus.hospital.patient.dto.response.AvailabilityResponse;
 import com.ainexus.hospital.patient.dto.response.TimeSlotResponse;
+import com.ainexus.hospital.patient.dto.response.UserSummaryResponse;
+import com.ainexus.hospital.patient.mapper.StaffMapper;
 import com.ainexus.hospital.patient.entity.Appointment;
 import com.ainexus.hospital.patient.entity.AppointmentStatus;
 import com.ainexus.hospital.patient.exception.ResourceNotFoundException;
@@ -18,6 +20,7 @@ import com.ainexus.hospital.patient.exception.ForbiddenException;
 import com.ainexus.hospital.patient.dto.response.PagedResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,17 +46,20 @@ public class DoctorAvailabilityService {
     private final PatientRepository patientRepository;
     private final AppointmentMapper mapper;
     private final RoleGuard roleGuard;
+    private final StaffMapper staffMapper;
 
     public DoctorAvailabilityService(AppointmentRepository appointmentRepository,
                                      HospitalUserRepository hospitalUserRepository,
                                      PatientRepository patientRepository,
                                      AppointmentMapper mapper,
-                                     RoleGuard roleGuard) {
+                                     RoleGuard roleGuard,
+                                     StaffMapper staffMapper) {
         this.appointmentRepository = appointmentRepository;
         this.hospitalUserRepository = hospitalUserRepository;
         this.patientRepository = patientRepository;
         this.mapper = mapper;
         this.roleGuard = roleGuard;
+        this.staffMapper = staffMapper;
     }
 
     @Transactional(readOnly = true)
@@ -140,5 +146,19 @@ public class DoctorAvailabilityService {
         return hospitalUserRepository.findById(doctorId)
                 .map(HospitalUser::getUsername)
                 .orElse("Unknown");
+    }
+
+    /**
+     * Returns all active doctors — accessible to any authenticated staff
+     * so the booking form can populate a doctor dropdown.
+     */
+    @Transactional(readOnly = true)
+    public List<UserSummaryResponse> listActiveDoctors() {
+        roleGuard.requireAuthenticated();
+        return hospitalUserRepository
+                .findByStatusAndRole("ACTIVE", "DOCTOR", Pageable.unpaged())
+                .stream()
+                .map(staffMapper::toSummaryResponse)
+                .toList();
     }
 }

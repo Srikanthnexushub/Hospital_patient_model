@@ -3,6 +3,7 @@ package com.ainexus.hospital.patient.controller;
 import com.ainexus.hospital.patient.dto.response.AppointmentSummaryResponse;
 import com.ainexus.hospital.patient.dto.response.AvailabilityResponse;
 import com.ainexus.hospital.patient.dto.response.PagedResponse;
+import com.ainexus.hospital.patient.dto.response.UserSummaryResponse;
 import com.ainexus.hospital.patient.service.DoctorAvailabilityService;
 import org.slf4j.MDC;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -10,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -20,6 +22,13 @@ public class DoctorScheduleController {
 
     public DoctorScheduleController(DoctorAvailabilityService availabilityService) {
         this.availabilityService = availabilityService;
+    }
+
+    // ── List active doctors (for booking form doctor picker) ─────────────────
+
+    @GetMapping
+    public ResponseEntity<List<UserSummaryResponse>> listDoctors() {
+        return ResponseEntity.ok(availabilityService.listActiveDoctors());
     }
 
     // ── US2: Doctor Schedule ──────────────────────────────────────────────────
