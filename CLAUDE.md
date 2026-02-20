@@ -5,6 +5,8 @@ Auto-generated from feature plans. Last updated: 2026-02-19
 ## Active Technologies
 - Java 17 (backend), JavaScript/Node 20 LTS (frontend) (002-auth-module)
 - PostgreSQL 15 (same Docker container as Patient Module). (002-auth-module)
+- Java 17 (backend), JavaScript ES2022 (frontend) + Spring Boot 3.2.3, Spring Data JPA / Hibernate 6, Spring Security 6, MapStruct 1.5.5, Lombok 1.18.38, Resilience4j 2.2.0, Micrometer Prometheus, jjwt 0.12.5, React 18, TanStack Query v5, React Hook Form, Zod, Tailwind CSS — **all pre-existing; zero new dependencies required** (003-appointment-scheduling)
+- PostgreSQL 15 — 4 new tables via Flyway V8–V11 (003-appointment-scheduling)
 
 | Layer | Technology |
 |---|---|
@@ -72,6 +74,16 @@ bash scripts/generate-certs.sh
 5. **RBAC** — server-side role check on EVERY endpoint; client-side checks are cosmetic
 
 ## Recent Changes
+- `003-appointment-scheduling`: Appointment Scheduling Module — full appointment lifecycle (US1–US7)
+  - **appointmentId format**: `APT` + year + 4-digit zero-padded seq (e.g. `APT20260001`)
+  - **Status machine**: SCHEDULED → CONFIRMED → CHECKED_IN → IN_PROGRESS → COMPLETED; CANCELLED/NO_SHOW are terminal; transitions enforced in `AppointmentStatusService`
+  - **Conflict detection**: `AppointmentRepository.findOverlappingAppointments()` uses `SELECT FOR UPDATE` to prevent race conditions
+  - **Availability slots**: 30-min granularity, 08:00–18:00; slot blocked if overlap check `a.startTime < slotEnd && a.endTime > slotStart`
+  - **Clinical notes encryption**: AES-256 via `ClinicalNotesEncryptionService`; `NOTES_ENCRYPTION_KEY` env var required; never logged
+  - **DOCTOR filter**: All appointment list queries automatically scope to `doctorId = currentUserId` for DOCTOR role
+  - **Flyway migrations**: V8 (appointments), V9 (appointment_audit_log), V10 (clinical_notes), V11 (appointment_id_sequences)
+  - **`bookAppointment()` test helper** in `BaseIntegrationTest` has 4-param (defaults 30 min) and 5-param (explicit duration) overloads; use 5-param when test logic depends on which slots are blocked
+  - **DoctorAvailabilityService**: JPQL query returns ALL non-deleted appointments; Java-level filter excludes CANCELLED/NO_SHOW before slot blocking (avoids Hibernate 6 enum string literal issues in JPQL)
 
 - `002-auth-module`: Auth Module — JWT-backed staff login, token refresh/revoke, user management (ADMIN only)
   - **BCrypt-12**: `PasswordConfig` exposes `@Bean PasswordEncoder` → `new BCryptPasswordEncoder(12)`

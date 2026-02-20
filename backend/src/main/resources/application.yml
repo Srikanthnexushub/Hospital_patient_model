@@ -106,3 +106,5 @@ app:
     lockout:
       max-attempts: ${AUTH_LOCKOUT_MAX_ATTEMPTS:5}
       duration-minutes: ${AUTH_LOCKOUT_DURATION_MINUTES:15}
+  notes:
+    encryption-key: ${APP_NOTES_ENCRYPTION_KEY}
