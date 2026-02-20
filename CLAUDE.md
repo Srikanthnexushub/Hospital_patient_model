@@ -1,6 +1,6 @@
 # Hospital Patient Management System — Development Guidelines
 
-Auto-generated from feature plans. Last updated: 2026-02-19
+Auto-generated from feature plans. Last updated: 2026-02-20
 
 ## Active Technologies
 - Java 17 (backend), JavaScript/Node 20 LTS (frontend) (002-auth-module)
@@ -76,7 +76,16 @@ bash scripts/generate-certs.sh
 5. **RBAC** — server-side role check on EVERY endpoint; client-side checks are cosmetic
 
 ## Recent Changes
-- 004-billing-module: Added Java 17, Spring Boot 3.2.x + Spring Data JPA, Spring Security (RoleGuard/AuthContext from Module 2), Flyway, MapStruct, Lombok, Micrometer (MeterRegistry)
+- `004-billing-module`: Billing & Invoicing Module — full invoice lifecycle (US1–US5)
+  - **invoiceId format**: `INV` + year + 6-digit zero-padded seq (e.g. `INV2026000001`); expands beyond 999999
+  - **Status lifecycle**: DRAFT → ISSUED → PARTIALLY_PAID → PAID; CANCELLED (from DRAFT/ISSUED); WRITTEN_OFF (from ISSUED/PARTIALLY_PAID)
+  - **Monetary amounts**: `NUMERIC(12,2)` — never floating point; `@Value("${billing.tax-rate:0.00}") BigDecimal taxRate` configurable
+  - **Payment methods**: `CASH | CARD | INSURANCE | BANK_TRANSFER | CHEQUE`; auto-status-transition on payment
+  - **DOCTOR scoping**: `ctx.getUserId()` must match `invoice.doctorId` (derived from appointment)
+  - **Native query pitfalls**: `CAST(col AS type)` not `col::type` (conflicts with `:param`); aggregate returns `List<Object[]>`
+  - **Financial report**: `GET /api/v1/reports/financial?dateFrom=&dateTo=` — ADMIN only; date range filters on `CAST(created_at AS date)`
+  - **Flyway migrations**: V12 (invoice_id_sequences), V13 (invoices), V14 (invoice_line_items), V15 (invoice_payments), V16 (invoice_audit_log)
+  - **Test results**: 108 unit + 191 integration = 299 total, 0 failures
 - `003-appointment-scheduling`: Appointment Scheduling Module — full appointment lifecycle (US1–US7)
   - **appointmentId format**: `APT` + year + 4-digit zero-padded seq (e.g. `APT20260001`)
   - **Status machine**: SCHEDULED → CONFIRMED → CHECKED_IN → IN_PROGRESS → COMPLETED; CANCELLED/NO_SHOW are terminal; transitions enforced in `AppointmentStatusService`
