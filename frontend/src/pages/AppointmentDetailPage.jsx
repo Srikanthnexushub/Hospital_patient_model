@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams, useLocation, Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.js'
 import { useAppointment, useChangeAppointmentStatus, useClinicalNotes, useAddClinicalNotes } from '../hooks/useAppointments.js'
+import { useVitalsByAppointment, useRecordVitals } from '../hooks/useEmr.js'
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx'
 
 function StatusBadge({ status }) {
@@ -107,6 +108,91 @@ function ActionButtons({ status, role, onAction }) {
           <button onClick={() => setShowCancelInput(false)} className="border border-gray-300 px-3 py-1.5 rounded text-sm hover:bg-gray-50">
             Back
           </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function VitalsSection({ appointmentId, role }) {
+  const canRecord = ['NURSE', 'DOCTOR', 'ADMIN'].includes(role)
+  const canView   = ['NURSE', 'DOCTOR', 'ADMIN'].includes(role)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({
+    bloodPressureSystolic: '', bloodPressureDiastolic: '', heartRate: '',
+    temperature: '', weight: '', height: '', oxygenSaturation: '', respiratoryRate: '',
+  })
+
+  const { data: vitals, isLoading } = useVitalsByAppointment(canView ? appointmentId : null)
+  const { mutate: save, isPending, error } = useRecordVitals(appointmentId)
+
+  if (!canView) return null
+
+  function handleSave() {
+    const payload = {}
+    Object.entries(form).forEach(([k, v]) => { if (v !== '') payload[k] = Number(v) })
+    save(payload, { onSuccess: () => setShowForm(false) })
+  }
+
+  const vitalLabels = [
+    ['bloodPressureSystolic', 'BP Systolic (mmHg)'],
+    ['bloodPressureDiastolic', 'BP Diastolic (mmHg)'],
+    ['heartRate', 'Heart Rate (bpm)'],
+    ['temperature', 'Temperature (°C)'],
+    ['weight', 'Weight (kg)'],
+    ['height', 'Height (cm)'],
+    ['oxygenSaturation', 'O₂ Saturation (%)'],
+    ['respiratoryRate', 'Respiratory Rate (br/min)'],
+  ]
+
+  return (
+    <div className="mt-6 border-t border-gray-200 pt-6">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-base font-semibold text-gray-900">Vitals</h2>
+        {canRecord && !showForm && (
+          <button onClick={() => setShowForm(true)} className="text-sm text-blue-600 hover:underline">
+            {vitals ? 'Update Vitals' : 'Record Vitals'}
+          </button>
+        )}
+      </div>
+
+      {isLoading ? <LoadingSpinner /> : vitals ? (
+        <dl className="space-y-2">
+          {vitals.bloodPressureSystolic != null && <InfoRow label="BP" value={`${vitals.bloodPressureSystolic}/${vitals.bloodPressureDiastolic} mmHg`} />}
+          {vitals.heartRate != null && <InfoRow label="Heart Rate" value={`${vitals.heartRate} bpm`} />}
+          {vitals.temperature != null && <InfoRow label="Temperature" value={`${vitals.temperature} °C`} />}
+          {vitals.weight != null && <InfoRow label="Weight" value={`${vitals.weight} kg`} />}
+          {vitals.height != null && <InfoRow label="Height" value={`${vitals.height} cm`} />}
+          {vitals.oxygenSaturation != null && <InfoRow label="O₂ Saturation" value={`${vitals.oxygenSaturation}%`} />}
+          {vitals.respiratoryRate != null && <InfoRow label="Respiratory Rate" value={`${vitals.respiratoryRate} br/min`} />}
+          <InfoRow label="Recorded By" value={vitals.recordedBy} />
+        </dl>
+      ) : (
+        <p className="text-sm text-gray-500">No vitals recorded.</p>
+      )}
+
+      {showForm && (
+        <div className="mt-4 space-y-3 bg-gray-50 p-4 rounded border border-gray-200">
+          {error && <p className="text-red-600 text-sm">{error?.response?.data?.message ?? error.message}</p>}
+          <div className="grid grid-cols-2 gap-3">
+            {vitalLabels.map(([key, label]) => (
+              <div key={key}>
+                <label className="block text-xs font-medium text-gray-600 mb-1">{label}</label>
+                <input
+                  type="number"
+                  value={form[key]}
+                  onChange={e => setForm(f => ({ ...f, [key]: e.target.value }))}
+                  className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <button onClick={handleSave} disabled={isPending} className="btn-primary text-sm py-1.5">
+              {isPending ? 'Saving…' : 'Save Vitals'}
+            </button>
+            <button onClick={() => setShowForm(false)} className="btn-secondary text-sm py-1.5">Cancel</button>
+          </div>
         </div>
       )}
     </div>
@@ -271,6 +357,7 @@ export default function AppointmentDetailPage() {
           </div>
         )}
 
+        <VitalsSection appointmentId={appointmentId} role={role} />
         <ClinicalNotesSection appointmentId={appointmentId} role={role} status={appt.status} />
       </div>
     </div>

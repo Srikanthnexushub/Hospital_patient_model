@@ -16,6 +16,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface AppointmentRepository extends JpaRepository<Appointment, String>,
@@ -91,4 +92,11 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
             @Param("doctorId") String doctorId,
             Pageable pageable
     );
+
+    /** Medical Summary — total visit count for a patient. */
+    long countByPatientId(String patientId);
+
+    /** Medical Summary — most recent completed appointment date for a patient. */
+    Optional<Appointment> findFirstByPatientIdAndStatusOrderByAppointmentDateDesc(
+            String patientId, AppointmentStatus status);
 }

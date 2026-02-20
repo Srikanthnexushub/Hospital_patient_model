@@ -12,6 +12,7 @@ import InvoiceListPage from './pages/InvoiceListPage.jsx'
 import InvoiceCreatePage from './pages/InvoiceCreatePage.jsx'
 import InvoiceDetailPage from './pages/InvoiceDetailPage.jsx'
 import FinancialReportPage from './pages/FinancialReportPage.jsx'
+import MedicalSummaryPage from './pages/MedicalSummaryPage.jsx'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth()
@@ -92,6 +93,11 @@ export default function App() {
                   <Route path="/patients/:patientId/edit" element={
                     <RoleRoute allowedRoles={['RECEPTIONIST', 'ADMIN']}>
                       <PatientProfilePage editMode />
+                    </RoleRoute>
+                  } />
+                  <Route path="/patients/:patientId/medical-summary" element={
+                    <RoleRoute allowedRoles={['DOCTOR', 'ADMIN']}>
+                      <MedicalSummaryPage />
                     </RoleRoute>
                   } />
                   <Route path="/appointments" element={<AppointmentListPage />} />
