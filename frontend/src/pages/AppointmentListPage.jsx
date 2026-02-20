@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.js'
 import { useAppointments, useTodayAppointments } from '../hooks/useAppointments.js'
+import { listAppointments, getTodayAppointments } from '../api/appointmentApi.js'
+import { downloadCsv } from '../utils/exportCsv.js'
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx'
 import Pagination from '../components/common/Pagination.jsx'
 
@@ -30,6 +32,7 @@ export default function AppointmentListPage() {
   const [showToday, setShowToday] = useState(false)
   const [page, setPage] = useState(0)
   const [filters, setFilters] = useState({ date: '', status: '', type: '' })
+  const [exporting, setExporting] = useState(false)
   const canBook = role === 'RECEPTIONIST' || role === 'ADMIN'
 
   const todayQuery = useTodayAppointments(page)
@@ -45,15 +48,59 @@ export default function AppointmentListPage() {
     setPage(0)
   }
 
+  async function handleExport() {
+    setExporting(true)
+    try {
+      let all
+      if (showToday) {
+        all = await getTodayAppointments({ page: 0, size: 1000 })
+      } else {
+        all = await listAppointments({ ...filters, page: 0, size: 1000 })
+      }
+      const headers = [
+        'Appointment ID', 'Date', 'Start Time', 'End Time', 'Duration (min)',
+        'Patient ID', 'Patient Name', 'Doctor ID', 'Doctor Name',
+        'Type', 'Status', 'Reason',
+      ]
+      const rows = all.content.map(a => [
+        a.appointmentId,
+        a.appointmentDate,
+        a.startTime,
+        a.endTime,
+        a.durationMinutes,
+        a.patientId,
+        a.patientName,
+        a.doctorId,
+        a.doctorName,
+        a.type?.replace(/_/g, ' '),
+        a.status?.replace(/_/g, ' '),
+        a.reason ?? '',
+      ])
+      const label = showToday ? 'appointments_today' : 'appointments'
+      downloadCsv(label, headers, rows)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Appointments</h1>
-        {canBook && (
-          <Link to="/appointments/new" className="btn-primary self-start sm:self-auto">
-            + Book Appointment
-          </Link>
-        )}
+        <div className="flex gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleExport}
+            disabled={exporting || !data || totalElements === 0}
+            className="btn-secondary text-sm disabled:opacity-50"
+          >
+            {exporting ? 'Exporting…' : '↓ Export CSV'}
+          </button>
+          {canBook && (
+            <Link to="/appointments/new" className="btn-primary">
+              + Book Appointment
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Today / All toggle */}
@@ -101,6 +148,14 @@ export default function AppointmentListPage() {
               <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
             ))}
           </select>
+          {(filters.date || filters.status || filters.type) && (
+            <button
+              onClick={() => { setFilters({ date: '', status: '', type: '' }); setPage(0) }}
+              className="text-sm text-gray-500 hover:text-gray-700 px-2"
+            >
+              ✕ Clear
+            </button>
+          )}
         </div>
       )}
 
