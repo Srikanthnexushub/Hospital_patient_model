@@ -14,6 +14,13 @@ function ProtectedRoute({ children }) {
   return isAuthenticated ? children : <Navigate to="/login" replace />
 }
 
+// Redirects to "/" if the current role is not in allowedRoles.
+// Backend enforces the same rules; this just prevents showing a broken form.
+function RoleRoute({ allowedRoles, children }) {
+  const { role } = useAuth()
+  return allowedRoles.includes(role) ? children : <Navigate to="/" replace />
+}
+
 function NavBar() {
   const { role } = useAuth()
   const navigate = useNavigate()
@@ -66,11 +73,23 @@ export default function App() {
                 <NavBar />
                 <Routes>
                   <Route path="/" element={<PatientListPage />} />
-                  <Route path="/patients/new" element={<PatientRegistrationPage />} />
+                  <Route path="/patients/new" element={
+                    <RoleRoute allowedRoles={['RECEPTIONIST', 'ADMIN']}>
+                      <PatientRegistrationPage />
+                    </RoleRoute>
+                  } />
                   <Route path="/patients/:patientId" element={<PatientProfilePage />} />
-                  <Route path="/patients/:patientId/edit" element={<PatientProfilePage editMode />} />
+                  <Route path="/patients/:patientId/edit" element={
+                    <RoleRoute allowedRoles={['RECEPTIONIST', 'ADMIN']}>
+                      <PatientProfilePage editMode />
+                    </RoleRoute>
+                  } />
                   <Route path="/appointments" element={<AppointmentListPage />} />
-                  <Route path="/appointments/new" element={<AppointmentBookingPage />} />
+                  <Route path="/appointments/new" element={
+                    <RoleRoute allowedRoles={['RECEPTIONIST', 'ADMIN']}>
+                      <AppointmentBookingPage />
+                    </RoleRoute>
+                  } />
                   <Route path="/appointments/:appointmentId" element={<AppointmentDetailPage />} />
                   <Route path="/doctors/:doctorId/availability" element={<DoctorAvailabilityPage />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
