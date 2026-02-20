@@ -3,6 +3,8 @@ package com.ainexus.hospital.patient.unit.service;
 import com.ainexus.hospital.patient.dto.response.*;
 import com.ainexus.hospital.patient.entity.Appointment;
 import com.ainexus.hospital.patient.entity.AppointmentStatus;
+import com.ainexus.hospital.patient.entity.BloodGroup;
+import com.ainexus.hospital.patient.entity.Patient;
 import com.ainexus.hospital.patient.exception.ForbiddenException;
 import com.ainexus.hospital.patient.exception.ResourceNotFoundException;
 import com.ainexus.hospital.patient.repository.AppointmentRepository;
@@ -23,6 +25,8 @@ import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -56,16 +60,26 @@ class MedicalSummaryServiceTest {
         AuthContext.Holder.set(new AuthContext("uid001", role.toLowerCase() + "1", role));
     }
 
+    private Patient stubPatient() {
+        Patient p = new Patient();
+        p.setFirstName("Jane");
+        p.setLastName("Doe");
+        p.setBloodGroup(BloodGroup.O_POS);
+        return p;
+    }
+
     @Test
     void getMedicalSummary_doctorRole_returnsSummary() {
         setAuth("DOCTOR");
-        when(patientRepository.existsById(PATIENT_ID)).thenReturn(true);
+        when(patientRepository.findById(PATIENT_ID)).thenReturn(Optional.of(stubPatient()));
 
         Appointment lastAppt = new Appointment();
         lastAppt.setAppointmentDate(LocalDate.of(2026, 1, 15));
         when(appointmentRepository.findFirstByPatientIdAndStatusOrderByAppointmentDateDesc(
                 PATIENT_ID, AppointmentStatus.COMPLETED))
                 .thenReturn(Optional.of(lastAppt));
+        when(appointmentRepository.findNextAppointment(eq(PATIENT_ID), any(LocalDate.class)))
+                .thenReturn(Optional.empty());
         when(appointmentRepository.countByPatientId(PATIENT_ID)).thenReturn(5L);
 
         when(problemService.getActiveProblems(PATIENT_ID)).thenReturn(Collections.emptyList());
@@ -75,7 +89,10 @@ class MedicalSummaryServiceTest {
 
         MedicalSummaryResponse summary = medicalSummaryService.getMedicalSummary(PATIENT_ID);
 
+        assertThat(summary.patientName()).isEqualTo("Jane Doe");
+        assertThat(summary.bloodGroup()).isEqualTo("O+");
         assertThat(summary.lastVisitDate()).isEqualTo(LocalDate.of(2026, 1, 15));
+        assertThat(summary.nextAppointmentDate()).isNull();
         assertThat(summary.totalVisits()).isEqualTo(5L);
         assertThat(summary.activeProblems()).isEmpty();
         assertThat(summary.activeMedications()).isEmpty();
@@ -84,11 +101,38 @@ class MedicalSummaryServiceTest {
     }
 
     @Test
+    void getMedicalSummary_withNextAppointment_returnsDate() {
+        setAuth("DOCTOR");
+        when(patientRepository.findById(PATIENT_ID)).thenReturn(Optional.of(stubPatient()));
+
+        when(appointmentRepository.findFirstByPatientIdAndStatusOrderByAppointmentDateDesc(
+                PATIENT_ID, AppointmentStatus.COMPLETED)).thenReturn(Optional.empty());
+
+        Appointment nextAppt = new Appointment();
+        nextAppt.setAppointmentDate(LocalDate.of(2026, 3, 10));
+        when(appointmentRepository.findNextAppointment(eq(PATIENT_ID), any(LocalDate.class)))
+                .thenReturn(Optional.of(nextAppt));
+        when(appointmentRepository.countByPatientId(PATIENT_ID)).thenReturn(0L);
+
+        when(problemService.getActiveProblems(PATIENT_ID)).thenReturn(Collections.emptyList());
+        when(medicationService.getActiveMedications(PATIENT_ID)).thenReturn(Collections.emptyList());
+        when(allergyService.getActiveAllergies(PATIENT_ID)).thenReturn(Collections.emptyList());
+        when(vitalsService.getTop5VitalsByPatient(PATIENT_ID)).thenReturn(Collections.emptyList());
+
+        MedicalSummaryResponse summary = medicalSummaryService.getMedicalSummary(PATIENT_ID);
+
+        assertThat(summary.nextAppointmentDate()).isEqualTo(LocalDate.of(2026, 3, 10));
+        assertThat(summary.lastVisitDate()).isNull();
+    }
+
+    @Test
     void getMedicalSummary_noCompletedAppointments_lastVisitDateIsNull() {
         setAuth("ADMIN");
-        when(patientRepository.existsById(PATIENT_ID)).thenReturn(true);
+        when(patientRepository.findById(PATIENT_ID)).thenReturn(Optional.of(stubPatient()));
         when(appointmentRepository.findFirstByPatientIdAndStatusOrderByAppointmentDateDesc(
                 PATIENT_ID, AppointmentStatus.COMPLETED))
+                .thenReturn(Optional.empty());
+        when(appointmentRepository.findNextAppointment(eq(PATIENT_ID), any(LocalDate.class)))
                 .thenReturn(Optional.empty());
         when(appointmentRepository.countByPatientId(PATIENT_ID)).thenReturn(0L);
         when(problemService.getActiveProblems(PATIENT_ID)).thenReturn(Collections.emptyList());
@@ -113,7 +157,7 @@ class MedicalSummaryServiceTest {
     @Test
     void getMedicalSummary_patientNotFound_throws404() {
         setAuth("DOCTOR");
-        when(patientRepository.existsById(PATIENT_ID)).thenReturn(false);
+        when(patientRepository.findById(PATIENT_ID)).thenReturn(Optional.empty());
 
         assertThatThrownBy(() -> medicalSummaryService.getMedicalSummary(PATIENT_ID))
                 .isInstanceOf(ResourceNotFoundException.class);

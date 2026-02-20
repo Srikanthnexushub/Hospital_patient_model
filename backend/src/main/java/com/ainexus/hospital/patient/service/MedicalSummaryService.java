@@ -1,7 +1,9 @@
 package com.ainexus.hospital.patient.service;
 
 import com.ainexus.hospital.patient.dto.response.MedicalSummaryResponse;
+import com.ainexus.hospital.patient.entity.Appointment;
 import com.ainexus.hospital.patient.entity.AppointmentStatus;
+import com.ainexus.hospital.patient.entity.Patient;
 import com.ainexus.hospital.patient.exception.ResourceNotFoundException;
 import com.ainexus.hospital.patient.repository.AppointmentRepository;
 import com.ainexus.hospital.patient.repository.PatientRepository;
@@ -42,23 +44,35 @@ public class MedicalSummaryService {
     public MedicalSummaryResponse getMedicalSummary(String patientId) {
         roleGuard.requireRoles("DOCTOR", "ADMIN");
 
-        if (!patientRepository.existsById(patientId)) {
-            throw new ResourceNotFoundException("Patient not found: " + patientId);
-        }
+        Patient patient = patientRepository.findById(patientId)
+                .orElseThrow(() -> new ResourceNotFoundException("Patient not found: " + patientId));
 
         LocalDate lastVisitDate = appointmentRepository
                 .findFirstByPatientIdAndStatusOrderByAppointmentDateDesc(patientId, AppointmentStatus.COMPLETED)
-                .map(a -> a.getAppointmentDate())
+                .map(Appointment::getAppointmentDate)
+                .orElse(null);
+
+        LocalDate nextAppointmentDate = appointmentRepository
+                .findNextAppointment(patientId, LocalDate.now())
+                .map(Appointment::getAppointmentDate)
                 .orElse(null);
 
         long totalVisits = appointmentRepository.countByPatientId(patientId);
 
+        String patientName = patient.getFirstName() + " " + patient.getLastName();
+        String bloodGroup  = patient.getBloodGroup() != null
+                ? patient.getBloodGroup().getDisplayValue()
+                : null;
+
         return new MedicalSummaryResponse(
+                patientName,
+                bloodGroup,
                 problemService.getActiveProblems(patientId),
                 medicationService.getActiveMedications(patientId),
                 allergyService.getActiveAllergies(patientId),
                 vitalsService.getTop5VitalsByPatient(patientId),
                 lastVisitDate,
+                nextAppointmentDate,
                 totalVisits
         );
     }

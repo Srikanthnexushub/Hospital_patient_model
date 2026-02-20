@@ -99,4 +99,16 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     /** Medical Summary — most recent completed appointment date for a patient. */
     Optional<Appointment> findFirstByPatientIdAndStatusOrderByAppointmentDateDesc(
             String patientId, AppointmentStatus status);
+
+    /** Medical Summary — next upcoming appointment (SCHEDULED or CONFIRMED) on or after today. */
+    @Query("""
+            SELECT a FROM Appointment a
+            WHERE a.patientId = :patientId
+              AND a.status IN ('SCHEDULED', 'CONFIRMED')
+              AND a.appointmentDate >= :today
+            ORDER BY a.appointmentDate ASC, a.startTime ASC
+            """)
+    Optional<Appointment> findNextAppointment(
+            @Param("patientId") String patientId,
+            @Param("today") LocalDate today);
 }
