@@ -1,0 +1,780 @@
+openapi: 3.1.0
+info:
+  title: Hospital Management System — Auth Module API
+  version: 1.0.0
+  description: |
+    Authentication, token lifecycle, and staff account management for the
+    Hospital Management System.
+
+    **Module**: 002-auth-module
+    **Branch**: 002-auth-module
+    **Company**: Ai Nexus
+    **Date**: 2026-02-20
+
+    ## JWT Compatibility
+    All tokens issued by this module are compatible with the Patient Module's
+    `JwtAuthFilter`. Claims structure is fixed:
+    - `sub`: userId (string, format `U` + YYYY + seq)
+    - `username`: login username
+    - `role`: single role string (RECEPTIONIST | DOCTOR | NURSE | ADMIN)
+    - `jti`: UUID4 token identifier (used for blacklist checks)
+    - `iat` / `exp`: milliseconds since epoch
+
+    ## Authentication
+    All endpoints except `/auth/login` require a valid Bearer token in the
+    `Authorization` header. A revoked (logged-out) token is always rejected,
+    regardless of its expiry.
+
+servers:
+  - url: https://localhost/api/v1
+    description: Local Docker stack (Nginx reverse proxy)
+  - url: http://localhost:8080/api/v1
+    description: Direct backend (development only)
+
+tags:
+  - name: Authentication
+    description: Login, logout, and token refresh
+  - name: Session
+    description: Current user profile
+  - name: User Management
+    description: ADMIN-only staff account lifecycle operations
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Security
+# ─────────────────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT issued by `POST /api/v1/auth/login` or `POST /api/v1/auth/refresh`.
+        Must contain claims: `sub` (userId), `username`, `role`, `jti`, `iat`, `exp`.
+        Revoked tokens (post-logout) are rejected with HTTP 401.
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Schemas
+  # ─────────────────────────────────────────────────────────────────────────
+  schemas:
+
+    # ── Requests ────────────────────────────────────────────────────────────
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          example: receptionist1
+          description: Login identifier. Case-insensitive.
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+          format: password
+          example: "S3cur3P@ss!"
+          description: Plain-text password (transmitted over HTTPS; never stored).
+
+    CreateUserRequest:
+      type: object
+      required: [username, password, role]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          pattern: '^[a-zA-Z0-9_-]+$'
+          example: nurse_jane
+        password:
+          type: string
+          minLength: 8
+          maxLength: 100
+          format: password
+          description: |
+            Must contain at least: 1 uppercase letter, 1 lowercase letter, 1 digit.
+        role:
+          $ref: '#/components/schemas/StaffRole'
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          example: jane.doe@hospital.local
+        department:
+          type: string
+          maxLength: 100
+          example: Cardiology
+
+    UpdateUserRequest:
+      type: object
+      description: All fields optional. Only provided fields are updated.
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          nullable: true
+          example: jane.doe@hospital.local
+        department:
+          type: string
+          maxLength: 100
+          nullable: true
+          example: Neurology
+        role:
+          $ref: '#/components/schemas/StaffRole'
+
+    # ── Responses ────────────────────────────────────────────────────────────
+
+    TokenResponse:
+      type: object
+      required: [token, userId, username, role, expiresAt]
+      properties:
+        token:
+          type: string
+          description: Signed JWT access token.
+          example: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJVMjAyNjAwMSJ9.signature
+        userId:
+          type: string
+          description: Staff user ID (format U + YYYY + seq).
+          example: U2026001
+        username:
+          type: string
+          example: receptionist1
+        role:
+          $ref: '#/components/schemas/StaffRole'
+        expiresAt:
+          type: string
+          format: date-time
+          description: Token expiry time (UTC ISO-8601).
+          example: "2026-02-20T21:00:00Z"
+
+    UserProfileResponse:
+      type: object
+      required: [userId, username, role]
+      properties:
+        userId:
+          type: string
+          example: U2026001
+        username:
+          type: string
+          example: receptionist1
+        role:
+          $ref: '#/components/schemas/StaffRole'
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: alice@hospital.local
+        department:
+          type: string
+          nullable: true
+          example: Admissions
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-02-20T08:05:00Z"
+
+    UserSummaryResponse:
+      type: object
+      required: [userId, username, role, status]
+      properties:
+        userId:
+          type: string
+          example: U2026002
+        username:
+          type: string
+          example: doctor_smith
+        role:
+          $ref: '#/components/schemas/StaffRole'
+        department:
+          type: string
+          nullable: true
+          example: Cardiology
+        status:
+          $ref: '#/components/schemas/AccountStatus'
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-02-20T09:30:00Z"
+
+    UserDetailResponse:
+      allOf:
+        - $ref: '#/components/schemas/UserSummaryResponse'
+        - type: object
+          properties:
+            email:
+              type: string
+              format: email
+              nullable: true
+              example: smith@hospital.local
+            createdAt:
+              type: string
+              format: date-time
+              example: "2026-02-19T10:00:00Z"
+            createdBy:
+              type: string
+              example: admin
+            failedAttempts:
+              type: integer
+              minimum: 0
+              example: 0
+
+    UserListResponse:
+      type: object
+      required: [content, totalElements, totalPages, page, size]
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserSummaryResponse'
+        totalElements:
+          type: integer
+          example: 47
+        totalPages:
+          type: integer
+          example: 2
+        page:
+          type: integer
+          example: 0
+        size:
+          type: integer
+          example: 20
+
+    # ── Enums ────────────────────────────────────────────────────────────────
+
+    StaffRole:
+      type: string
+      enum: [RECEPTIONIST, DOCTOR, NURSE, ADMIN]
+      description: Hospital staff role. Maps directly to the JWT `role` claim.
+      example: RECEPTIONIST
+
+    AccountStatus:
+      type: string
+      enum: [ACTIVE, INACTIVE]
+      example: ACTIVE
+
+    # ── Error ────────────────────────────────────────────────────────────────
+
+    ErrorResponse:
+      type: object
+      required: [timestamp, status, error, message, traceId]
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: "2026-02-20T13:00:00Z"
+        status:
+          type: integer
+          example: 401
+        error:
+          type: string
+          example: Unauthorized
+        message:
+          type: string
+          example: Invalid credentials.
+        traceId:
+          type: string
+          description: 16-character hex trace ID for log correlation.
+          example: a1b2c3d4e5f60001
+        fieldErrors:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+  # ─────────────────────────────────────────────────────────────────────────
+  # Reusable Responses
+  # ─────────────────────────────────────────────────────────────────────────
+  responses:
+    Unauthorized:
+      description: Missing, expired, or revoked token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            timestamp: "2026-02-20T13:00:00Z"
+            status: 401
+            error: Unauthorized
+            message: Authentication required.
+            traceId: a1b2c3d4e5f60001
+            fieldErrors: null
+
+    Forbidden:
+      description: Authenticated but insufficient role.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            timestamp: "2026-02-20T13:00:00Z"
+            status: 403
+            error: Forbidden
+            message: You do not have permission to perform this operation.
+            traceId: b2c3d4e5f6a70002
+            fieldErrors: null
+
+    TooManyRequests:
+      description: Rate limit exceeded (HTTP 429).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            timestamp: "2026-02-20T13:00:00Z"
+            status: 429
+            error: Too Many Requests
+            message: Rate limit exceeded. Please try again later.
+            traceId: c3d4e5f6a7b80003
+            fieldErrors: null
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Global Security (all protected endpoints)
+# ─────────────────────────────────────────────────────────────────────────────
+security:
+  - BearerAuth: []
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Paths
+# ─────────────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── POST /auth/login ───────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Staff login
+      description: |
+        Authenticates a staff member with username and password. Returns a signed
+        JWT access token on success.
+
+        **Rate limit**: 10 requests per IP per minute (stricter than general API limit).
+        Exceeding this limit returns HTTP 429.
+
+        **Account lockout**: After 5 consecutive failures, the account is locked for
+        15 minutes. Subsequent attempts return HTTP 423 until the lockout expires.
+
+        **Security**: This endpoint is public (no token required). Submitting invalid
+        credentials increments the failure counter regardless of whether the account
+        exists.
+      operationId: login
+      security: []  # Public — no token required
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: receptionist1
+              password: "S3cur3P@ss!"
+      responses:
+        '200':
+          description: Login successful. JWT token returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+              example:
+                token: eyJhbGciOiJIUzI1NiJ9...
+                userId: U2026001
+                username: receptionist1
+                role: RECEPTIONIST
+                expiresAt: "2026-02-20T21:00:00Z"
+        '400':
+          description: Validation error (missing or blank username/password).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2026-02-20T13:00:00Z"
+                status: 400
+                error: Bad Request
+                message: Validation failed.
+                traceId: a1b2c3d4e5f60001
+                fieldErrors:
+                  - field: password
+                    message: must not be blank
+        '401':
+          description: Invalid credentials or deactivated account.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2026-02-20T13:00:00Z"
+                status: 401
+                error: Unauthorized
+                message: Invalid credentials.
+                traceId: a1b2c3d4e5f60001
+                fieldErrors: null
+        '423':
+          description: Account locked due to repeated failed login attempts.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2026-02-20T13:00:00Z"
+                status: 423
+                error: Locked
+                message: Account is temporarily locked. Try again in 15 minutes.
+                traceId: a1b2c3d4e5f60001
+                fieldErrors: null
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  # ── POST /auth/refresh ─────────────────────────────────────────────────────
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Refresh access token
+      description: |
+        Accepts a valid, non-expired, non-revoked access token and issues a new
+        access token with a fresh expiry window. The original token remains valid
+        until its own natural expiry.
+
+        **Requires**: A valid Bearer token.
+        **Rejects**: Expired tokens (re-login required) and revoked tokens (logged-out).
+      operationId: refreshToken
+      responses:
+        '200':
+          description: New token issued.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── POST /auth/logout ──────────────────────────────────────────────────────
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: Logout — revoke current token
+      description: |
+        Immediately revokes the presented token by adding its `jti` to the token
+        blacklist. The token is rejected on all subsequent requests, even before
+        its natural expiry.
+
+        **Requires**: A valid Bearer token.
+        **Idempotent**: Calling logout with an already-revoked token returns HTTP 401.
+      operationId: logout
+      responses:
+        '204':
+          description: Token revoked successfully. No body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── GET /auth/me ───────────────────────────────────────────────────────────
+  /auth/me:
+    get:
+      tags: [Session]
+      summary: Get current user profile
+      description: |
+        Returns the authenticated staff member's own profile. Does not expose
+        password hash, failure counter details, or lockout state.
+
+        **Requires**: A valid Bearer token.
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: User profile returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
+              example:
+                userId: U2026001
+                username: receptionist1
+                role: RECEPTIONIST
+                email: alice@hospital.local
+                department: Admissions
+                lastLoginAt: "2026-02-20T08:05:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── POST /admin/users ──────────────────────────────────────────────────────
+  /admin/users:
+    post:
+      tags: [User Management]
+      summary: Create staff account (ADMIN only)
+      description: |
+        Creates a new hospital staff account. The new user can immediately log in
+        with the provided credentials.
+
+        **Requires**: ADMIN role.
+        **Username uniqueness**: Enforced across all accounts (active and inactive).
+      operationId: createUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+            example:
+              username: nurse_jane
+              password: "N0rs3P@ss!"
+              role: NURSE
+              email: jane.doe@hospital.local
+              department: Cardiology
+      responses:
+        '201':
+          description: Staff account created.
+          headers:
+            Location:
+              description: URL of the new user resource.
+              schema:
+                type: string
+              example: /api/v1/admin/users/U2026002
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Username already exists.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2026-02-20T13:00:00Z"
+                status: 409
+                error: Conflict
+                message: Username 'nurse_jane' is already taken.
+                traceId: d4e5f6a7b8c90004
+                fieldErrors: null
+
+    get:
+      tags: [User Management]
+      summary: List staff accounts (ADMIN only)
+      description: |
+        Returns a paginated list of all staff accounts. Supports filtering by role
+        and status.
+
+        **Requires**: ADMIN role.
+      operationId: listUsers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          description: Zero-based page number.
+        - name: size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Page size (max 100).
+        - name: role
+          in: query
+          schema:
+            $ref: '#/components/schemas/StaffRole'
+          description: Filter by role.
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/AccountStatus'
+          description: Filter by account status.
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [username, createdAt, lastLoginAt]
+            default: username
+          description: Sort field.
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: ASC
+      responses:
+        '200':
+          description: Paginated user list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ── GET /admin/users/{userId} ──────────────────────────────────────────────
+  /admin/users/{userId}:
+    get:
+      tags: [User Management]
+      summary: Get staff account detail (ADMIN only)
+      description: |
+        Returns the full detail of a single staff account by user ID.
+
+        **Requires**: ADMIN role.
+      operationId: getUserById
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: '^U\d{7,}$'
+          example: U2026002
+      responses:
+        '200':
+          description: Staff account detail.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    patch:
+      tags: [User Management]
+      summary: Update staff account (ADMIN only)
+      description: |
+        Partially updates a staff account. All fields are optional — only provided
+        fields are updated. Setting `status` to `INACTIVE` deactivates the account;
+        setting it to `ACTIVE` reactivates it.
+
+        **Requires**: ADMIN role.
+        **Restriction**: An ADMIN cannot deactivate their own account.
+        **Optimistic locking**: Client must send `If-Match: "<version>"` header.
+        Version mismatch returns HTTP 409.
+      operationId: updateUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: U2026002
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: string
+          description: ETag from a previous GET response. Format `"<version>"`.
+          example: '"3"'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+            example:
+              department: Neurology
+              role: DOCTOR
+      responses:
+        '200':
+          description: Account updated.
+          headers:
+            ETag:
+              schema:
+                type: string
+              example: '"4"'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserDetailResponse'
+        '400':
+          description: Validation error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden — insufficient role, or ADMIN attempting self-deactivation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Version conflict (optimistic lock failure).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                timestamp: "2026-02-20T13:00:00Z"
+                status: 409
+                error: Conflict
+                message: The resource was modified by another request. Please refresh and retry.
+                traceId: e5f6a7b8c9d00005
+                fieldErrors: null
+
+    delete:
+      tags: [User Management]
+      summary: Deactivate staff account (ADMIN only)
+      description: |
+        Soft-deactivates a staff account. The account record is retained; the user
+        can no longer log in. Reactivation is possible via PATCH.
+
+        **Requires**: ADMIN role.
+        **Restriction**: An ADMIN cannot deactivate their own account.
+        **Idempotent**: Deactivating an already-inactive account returns 204.
+      operationId: deactivateUser
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+          example: U2026002
+      responses:
+        '204':
+          description: Account deactivated (or was already inactive). No body.
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden — insufficient role, or ADMIN attempting self-deactivation.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: User not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'

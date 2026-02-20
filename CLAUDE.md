@@ -3,6 +3,8 @@
 Auto-generated from feature plans. Last updated: 2026-02-19
 
 ## Active Technologies
+- Java 17 (backend), JavaScript/Node 20 LTS (frontend) (002-auth-module)
+- PostgreSQL 15 (same Docker container as Patient Module). (002-auth-module)
 
 | Layer | Technology |
 |---|---|
@@ -70,6 +72,7 @@ bash scripts/generate-certs.sh
 5. **RBAC** — server-side role check on EVERY endpoint; client-side checks are cosmetic
 
 ## Recent Changes
+- 002-auth-module: Added Java 17 (backend), JavaScript/Node 20 LTS (frontend)
 
 - `001-patient-module`: Initial patient module — registration, search, profile, update, status management
 
