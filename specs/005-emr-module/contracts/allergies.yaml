@@ -1,0 +1,173 @@
+openapi: "3.0.3"
+info:
+  title: EMR Allergy Registry API
+  version: "1.0"
+  description: Patient allergy registry (US4)
+
+paths:
+  /api/v1/patients/{patientId}/allergies:
+    post:
+      summary: Record an allergy
+      operationId: recordAllergy
+      tags: [Allergies]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "P2026001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordAllergyRequest'
+            example:
+              substance: "Penicillin"
+              type: "DRUG"
+              severity: "LIFE_THREATENING"
+              reaction: "anaphylaxis"
+      responses:
+        "201":
+          description: Allergy recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AllergyResponse'
+        "400":
+          description: Validation error (missing substance, type, severity, or reaction)
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Role not permitted (RECEPTIONIST denied)
+        "404":
+          description: Patient not found
+
+    get:
+      summary: List a patient's active allergies
+      description: Returns only active (non-deleted) allergies by default.
+      operationId: listAllergies
+      tags: [Allergies]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Active allergy list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AllergyResponse'
+        "404":
+          description: Patient not found
+
+  /api/v1/patients/{patientId}/allergies/{allergyId}:
+    delete:
+      summary: Soft-delete an allergy
+      description: |
+        Marks the allergy as inactive (`active = false`). The record is retained for audit.
+        Returns 404 if allergy not found or already inactive.
+      operationId: deleteAllergy
+      tags: [Allergies]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: allergyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Allergy deactivated (soft-deleted)
+        "403":
+          description: Role not permitted (RECEPTIONIST denied)
+        "404":
+          description: Allergy not found or already inactive
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RecordAllergyRequest:
+      type: object
+      required: [substance, type, severity, reaction]
+      properties:
+        substance:
+          type: string
+          maxLength: 200
+        type:
+          type: string
+          enum: [DRUG, FOOD, ENVIRONMENTAL, OTHER]
+        severity:
+          type: string
+          enum: [MILD, MODERATE, SEVERE, LIFE_THREATENING]
+        reaction:
+          type: string
+        onsetDate:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    AllergyResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+        substance:
+          type: string
+        type:
+          type: string
+          enum: [DRUG, FOOD, ENVIRONMENTAL, OTHER]
+        severity:
+          type: string
+          enum: [MILD, MODERATE, SEVERE, LIFE_THREATENING]
+        reaction:
+          type: string
+        onsetDate:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        active:
+          type: boolean
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true

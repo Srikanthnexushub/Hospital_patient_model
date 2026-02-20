@@ -9,6 +9,8 @@ Auto-generated from feature plans. Last updated: 2026-02-20
 - PostgreSQL 15 — 4 new tables via Flyway V8–V11 (003-appointment-scheduling)
 - Java 17, Spring Boot 3.2.x + Spring Data JPA, Spring Security (RoleGuard/AuthContext from Module 2), Flyway, MapStruct, Lombok, Micrometer (MeterRegistry) (004-billing-module)
 - PostgreSQL 15 — new tables V12–V16 via Flyway; existing V1–V11 untouched (004-billing-module)
+- Java 17 / Spring Boot 3.2.x (Hibernate 6.4.x) + Spring Data JPA, Spring Security (existing), MapStruct, Lombok, Resilience4j, Flyway, Micrometer (005-emr-module)
+- PostgreSQL 15 — 4 new entity tables + 1 audit table via Flyway V17–V21 (005-emr-module)
 
 | Layer | Technology |
 |---|---|
@@ -76,6 +78,7 @@ bash scripts/generate-certs.sh
 5. **RBAC** — server-side role check on EVERY endpoint; client-side checks are cosmetic
 
 ## Recent Changes
+- 005-emr-module: Added Java 17 / Spring Boot 3.2.x (Hibernate 6.4.x) + Spring Data JPA, Spring Security (existing), MapStruct, Lombok, Resilience4j, Flyway, Micrometer
 - `004-billing-module`: Billing & Invoicing Module — full invoice lifecycle (US1–US5) + full frontend UI
   - **invoiceId format**: `INV` + year + 6-digit zero-padded seq (e.g. `INV2026000001`); expands beyond 999999
   - **Status lifecycle**: DRAFT → ISSUED → PARTIALLY_PAID → PAID; CANCELLED (from DRAFT/ISSUED); WRITTEN_OFF (from ISSUED/PARTIALLY_PAID)
@@ -98,7 +101,6 @@ bash scripts/generate-certs.sh
   - **`bookAppointment()` test helper** in `BaseIntegrationTest` has 4-param (defaults 30 min) and 5-param (explicit duration) overloads; use 5-param when test logic depends on which slots are blocked
   - **DoctorAvailabilityService**: JPQL query returns ALL non-deleted appointments; Java-level filter excludes CANCELLED/NO_SHOW before slot blocking (avoids Hibernate 6 enum string literal issues in JPQL)
 
-- `002-auth-module`: Auth Module — JWT-backed staff login, token refresh/revoke, user management (ADMIN only)
   - **BCrypt-12**: `PasswordConfig` exposes `@Bean PasswordEncoder` → `new BCryptPasswordEncoder(12)`
   - **Filter order**: `addFilterBefore(blacklistCheckFilter, UsernamePasswordAuthenticationFilter.class)` THEN `addFilterBefore(jwtAuthFilter, ...)` — both anchored to `UsernamePasswordAuthenticationFilter`, insertion order makes blacklist run first; custom filters cannot be used as anchors
   - **JwtAuthFilter skip**: Only `/api/v1/auth/login` is skipped — refresh/logout/me all require a valid token
