@@ -1,0 +1,233 @@
+openapi: "3.0.3"
+info:
+  title: EMR Problem List API
+  version: "1.0"
+  description: Patient problem list management (US2)
+
+paths:
+  /api/v1/patients/{patientId}/problems:
+    post:
+      summary: Add a problem to the patient's list
+      operationId: createProblem
+      tags: [Problems]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "P2026001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProblemRequest'
+            example:
+              title: "Type 2 Diabetes"
+              severity: "MODERATE"
+              status: "ACTIVE"
+              onsetDate: "2020-03-15"
+              icdCode: "E11"
+      responses:
+        "201":
+          description: Problem created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemResponse'
+        "400":
+          description: Validation error (missing required field, future onset date)
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Role not permitted (NURSE or RECEPTIONIST denied)
+        "404":
+          description: Patient not found
+
+    get:
+      summary: List a patient's problems
+      description: Defaults to ACTIVE only. Use ?status=ALL for all statuses.
+      operationId: listProblems
+      tags: [Problems]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [ACTIVE, RESOLVED, INACTIVE, ALL]
+            default: ACTIVE
+      responses:
+        "200":
+          description: Problem list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProblemResponse'
+        "403":
+          description: Role not permitted (RECEPTIONIST denied)
+        "404":
+          description: Patient not found
+
+  /api/v1/patients/{patientId}/problems/{problemId}:
+    patch:
+      summary: Update a problem
+      description: Partial update — only supplied fields are changed.
+      operationId: updateProblem
+      tags: [Problems]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: problemId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProblemRequest'
+            example:
+              status: "RESOLVED"
+      responses:
+        "200":
+          description: Problem updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProblemResponse'
+        "400":
+          description: Validation error
+        "403":
+          description: Role not permitted (NURSE or RECEPTIONIST denied)
+        "404":
+          description: Patient or problem not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    CreateProblemRequest:
+      type: object
+      required: [title, severity, status]
+      properties:
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+          nullable: true
+        icdCode:
+          type: string
+          maxLength: 20
+          nullable: true
+        severity:
+          type: string
+          enum: [MILD, MODERATE, SEVERE]
+        status:
+          type: string
+          enum: [ACTIVE, RESOLVED, INACTIVE]
+          default: ACTIVE
+        onsetDate:
+          type: string
+          format: date
+          nullable: true
+          description: Cannot be a future date
+        notes:
+          type: string
+          nullable: true
+
+    UpdateProblemRequest:
+      type: object
+      description: All fields optional — only provided fields are updated.
+      properties:
+        title:
+          type: string
+          maxLength: 200
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        icdCode:
+          type: string
+          nullable: true
+        severity:
+          type: string
+          enum: [MILD, MODERATE, SEVERE]
+          nullable: true
+        status:
+          type: string
+          enum: [ACTIVE, RESOLVED, INACTIVE]
+          nullable: true
+        onsetDate:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+
+    ProblemResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        patientId:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        icdCode:
+          type: string
+          nullable: true
+        severity:
+          type: string
+          enum: [MILD, MODERATE, SEVERE]
+        status:
+          type: string
+          enum: [ACTIVE, RESOLVED, INACTIVE]
+        onsetDate:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true

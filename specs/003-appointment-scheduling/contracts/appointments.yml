@@ -1,0 +1,605 @@
+openapi: "3.0.3"
+info:
+  title: Appointment Scheduling API
+  version: "1.0"
+  description: |
+    Module 3 — Appointment Scheduling endpoints.
+    All endpoints require a valid JWT Bearer token.
+    Role enforcement is implemented server-side; client-side checks are cosmetic only.
+
+servers:
+  - url: /api/v1
+
+# ── Shared security ──────────────────────────────────────────────────────────
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    # ── Enumerations ──────────────────────────────────────────────────────────
+    AppointmentStatus:
+      type: string
+      enum: [SCHEDULED, CONFIRMED, CHECKED_IN, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW]
+
+    AppointmentType:
+      type: string
+      enum: [GENERAL_CONSULTATION, FOLLOW_UP, SPECIALIST, EMERGENCY, ROUTINE_CHECKUP, PROCEDURE]
+
+    AppointmentAction:
+      type: string
+      enum: [CONFIRM, CHECK_IN, START, COMPLETE, CANCEL, NO_SHOW]
+
+    # ── Request bodies ────────────────────────────────────────────────────────
+    BookAppointmentRequest:
+      type: object
+      required: [patientId, doctorId, appointmentDate, startTime, durationMinutes, type, reason]
+      properties:
+        patientId:
+          type: string
+          example: "P2026001"
+          description: "Patient ID — must be ACTIVE status."
+        doctorId:
+          type: string
+          example: "U2026001"
+          description: "Doctor user ID — must exist with role=DOCTOR and status=ACTIVE."
+        appointmentDate:
+          type: string
+          format: date
+          example: "2026-03-10"
+          description: "Hospital local date. Must not be in the past."
+        startTime:
+          type: string
+          example: "09:00"
+          description: "Hospital local time (HH:mm). Must be 08:00–17:30 (non-EMERGENCY)."
+        durationMinutes:
+          type: integer
+          enum: [15, 30, 45, 60, 90, 120]
+          example: 30
+        type:
+          $ref: '#/components/schemas/AppointmentType'
+        reason:
+          type: string
+          maxLength: 500
+          example: "Annual checkup"
+        notes:
+          type: string
+          maxLength: 1000
+          description: "Scheduling/administrative notes (not clinical)."
+          nullable: true
+
+    UpdateAppointmentRequest:
+      type: object
+      description: |
+        Only SCHEDULED or CONFIRMED appointments may be updated.
+        patientId and doctorId are immutable — create a new appointment to change them.
+      properties:
+        appointmentDate:
+          type: string
+          format: date
+        startTime:
+          type: string
+          example: "10:00"
+        durationMinutes:
+          type: integer
+          enum: [15, 30, 45, 60, 90, 120]
+        type:
+          $ref: '#/components/schemas/AppointmentType'
+        reason:
+          type: string
+          maxLength: 500
+        notes:
+          type: string
+          maxLength: 1000
+
+    AppointmentStatusChangeRequest:
+      type: object
+      required: [action]
+      properties:
+        action:
+          $ref: '#/components/schemas/AppointmentAction'
+        reason:
+          type: string
+          maxLength: 500
+          description: "Required when action = CANCEL."
+
+    # ── Response bodies ───────────────────────────────────────────────────────
+    AppointmentResponse:
+      type: object
+      properties:
+        appointmentId:
+          type: string
+          example: "APT20260001"
+        patientId:
+          type: string
+          example: "P2026001"
+        patientName:
+          type: string
+          example: "Rajesh Kumar"
+        doctorId:
+          type: string
+          example: "U2026001"
+        doctorName:
+          type: string
+          example: "Dr. Emily Jones"
+        appointmentDate:
+          type: string
+          format: date
+        startTime:
+          type: string
+          example: "09:00"
+        endTime:
+          type: string
+          example: "09:30"
+        durationMinutes:
+          type: integer
+        type:
+          $ref: '#/components/schemas/AppointmentType'
+        status:
+          $ref: '#/components/schemas/AppointmentStatus'
+        reason:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        cancelReason:
+          type: string
+          nullable: true
+        version:
+          type: integer
+          description: "Current version — send in If-Match header to update."
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          type: string
+        updatedAt:
+          type: string
+          format: date-time
+        updatedBy:
+          type: string
+
+    AppointmentSummaryResponse:
+      type: object
+      properties:
+        appointmentId:
+          type: string
+        patientId:
+          type: string
+        patientName:
+          type: string
+        doctorId:
+          type: string
+        doctorName:
+          type: string
+        appointmentDate:
+          type: string
+          format: date
+        startTime:
+          type: string
+        endTime:
+          type: string
+        durationMinutes:
+          type: integer
+        type:
+          $ref: '#/components/schemas/AppointmentType'
+        status:
+          $ref: '#/components/schemas/AppointmentStatus'
+
+    PagedAppointmentResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentSummaryResponse'
+        page:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+          format: int64
+        totalPages:
+          type: integer
+        first:
+          type: boolean
+        last:
+          type: boolean
+
+    AppointmentStatusChangeResponse:
+      type: object
+      properties:
+        appointmentId:
+          type: string
+        previousStatus:
+          $ref: '#/components/schemas/AppointmentStatus'
+        newStatus:
+          $ref: '#/components/schemas/AppointmentStatus'
+        message:
+          type: string
+
+    AvailabilityResponse:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+        doctorId:
+          type: string
+        doctorName:
+          type: string
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/TimeSlotResponse'
+
+    TimeSlotResponse:
+      type: object
+      properties:
+        startTime:
+          type: string
+          example: "09:00"
+        endTime:
+          type: string
+          example: "09:30"
+        available:
+          type: boolean
+        appointmentId:
+          type: string
+          nullable: true
+          description: "Present when available=false — identifies the blocking appointment."
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        traceId:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+# ── Paths ─────────────────────────────────────────────────────────────────────
+paths:
+
+  # ── US1: Book Appointment ──────────────────────────────────────────────────
+  /appointments:
+    post:
+      operationId: bookAppointment
+      summary: "Book an appointment (US1)"
+      description: |
+        Creates a new appointment in SCHEDULED status.
+        Roles: RECEPTIONIST, ADMIN.
+        Patient must be ACTIVE. Doctor must be ACTIVE with role=DOCTOR.
+        Conflict detection rejects overlapping doctor appointments atomically.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookAppointmentRequest'
+      responses:
+        "201":
+          description: "Appointment created successfully."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        "400":
+          description: "Validation error (invalid fields, durationMinutes, appointmentDate in past, etc.)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: "Forbidden — caller role is not RECEPTIONIST or ADMIN."
+        "404":
+          description: "Patient or doctor not found."
+        "409":
+          description: "Conflict — doctor has an overlapping appointment, or patient is not ACTIVE."
+        "401":
+          description: "Unauthorized — missing or invalid JWT."
+
+    # ── US2: List Appointments ─────────────────────────────────────────────
+    get:
+      operationId: listAppointments
+      summary: "List/search appointments (US2)"
+      description: |
+        Returns paginated appointments sorted by appointmentDate+startTime ASC.
+        DOCTOR role: automatically filtered to own appointments only.
+        RECEPTIONIST, NURSE, ADMIN: can see all.
+      parameters:
+        - name: doctorId
+          in: query
+          schema:
+            type: string
+          description: "Filter by doctor. DOCTOR role ignores this — always forced to own appointments."
+        - name: patientId
+          in: query
+          schema:
+            type: string
+        - name: date
+          in: query
+          schema:
+            type: string
+            format: date
+          description: "Exact date filter. Mutually exclusive with dateFrom/dateTo."
+        - name: dateFrom
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: dateTo
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/AppointmentStatus'
+        - name: type
+          in: query
+          schema:
+            $ref: '#/components/schemas/AppointmentType'
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: "Paginated appointment list."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedAppointmentResponse'
+        "401":
+          description: "Unauthorized."
+
+  /appointments/today:
+    get:
+      operationId: getTodayAppointments
+      summary: "Today's appointments shortcut (US2)"
+      description: |
+        Returns today's appointments. DOCTOR sees only own; others see all.
+        Sorted by startTime ASC.
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          description: "Today's appointments."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedAppointmentResponse'
+
+  /appointments/{appointmentId}:
+    get:
+      operationId: getAppointment
+      summary: "Get appointment detail (US2)"
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        "404":
+          description: "Appointment not found."
+
+    # ── US4: Update Appointment ──────────────────────────────────────────────
+    patch:
+      operationId: updateAppointment
+      summary: "Update appointment details (US4)"
+      description: |
+        Updates mutable fields on a SCHEDULED or CONFIRMED appointment.
+        Roles: RECEPTIONIST, ADMIN.
+        Optimistic locking: send current `version` in If-Match header.
+        Re-runs conflict detection if date/time/duration changes.
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: If-Match
+          in: header
+          required: true
+          schema:
+            type: integer
+          description: "Current version of the appointment."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAppointmentRequest'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        "400":
+          description: "Validation error or appointment status not editable."
+        "403":
+          description: "Forbidden."
+        "404":
+          description: "Appointment not found."
+        "409":
+          description: "Version conflict (stale If-Match) or scheduling conflict."
+
+  /appointments/{appointmentId}/status:
+    # ── US3: Status Lifecycle ──────────────────────────────────────────────
+    patch:
+      operationId: changeAppointmentStatus
+      summary: "Update appointment status (US3)"
+      description: |
+        Transitions appointment through the defined state machine.
+        Invalid transitions or unauthorized roles return 409/403 respectively.
+        CANCEL action requires a non-empty `reason` field.
+        ADMIN can cancel any appointment regardless of current status.
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentStatusChangeRequest'
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentStatusChangeResponse'
+        "400":
+          description: "Validation error (missing cancel reason, etc.)"
+        "403":
+          description: "Role not permitted for this transition."
+        "404":
+          description: "Appointment not found."
+        "409":
+          description: "Invalid state machine transition."
+
+  # ── US2: Doctor Schedule ───────────────────────────────────────────────────
+  /doctors/{doctorId}/schedule:
+    get:
+      operationId: getDoctorSchedule
+      summary: "Get doctor's schedule for a date (US2)"
+      description: |
+        Returns all appointments for a doctor on the specified date.
+        DOCTOR role: can only query own doctorId.
+      parameters:
+        - name: doctorId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          example: "2026-03-10"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedAppointmentResponse'
+        "403":
+          description: "DOCTOR role attempting to view another doctor's schedule."
+
+  # ── US5: Doctor Availability ───────────────────────────────────────────────
+  /doctors/{doctorId}/availability:
+    get:
+      operationId: getDoctorAvailability
+      summary: "Get doctor availability slots (US5)"
+      description: |
+        Returns 20 × 30-minute slots from 08:00 to 18:00 for the doctor on the given date.
+        Slots with active (non-cancelled/no-show) appointments are marked OCCUPIED.
+        Roles: all authenticated staff.
+      parameters:
+        - name: doctorId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AvailabilityResponse'
+        "404":
+          description: "Doctor not found."
+
+  # ── US7: Patient Appointment History ─────────────────────────────────────
+  /patients/{patientId}/appointments:
+    get:
+      operationId: getPatientAppointmentHistory
+      summary: "Get patient appointment history (US7)"
+      description: |
+        Returns paginated appointment history for a patient, all statuses included.
+        DOCTOR: filtered to own appointments only.
+        Sorted by appointmentDate DESC.
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PagedAppointmentResponse'
+        "404":
+          description: "Patient not found."

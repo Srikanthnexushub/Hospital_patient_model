@@ -1,0 +1,188 @@
+openapi: "3.0.3"
+info:
+  title: EMR Medical Summary API
+  version: "1.0"
+  description: Patient medical summary — aggregated clinical snapshot (US5)
+
+paths:
+  /api/v1/patients/{patientId}/medical-summary:
+    get:
+      summary: Get a patient's complete clinical snapshot
+      description: |
+        Returns a single aggregated view containing:
+        - Active problems (all problems with status=ACTIVE)
+        - Active medications (all medications with status=ACTIVE)
+        - Active allergies
+        - Most recent 5 vitals records
+        - Last visit date (most recent COMPLETED appointment)
+        - Total visit count (total COMPLETED appointments)
+
+        If no data exists for any category, returns empty lists and zero counts — no errors.
+      operationId: getMedicalSummary
+      tags: [Medical Summary]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "P2026001"
+      responses:
+        "200":
+          description: Medical summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MedicalSummaryResponse'
+              example:
+                patientId: "P2026001"
+                activeProblems:
+                  - id: "550e8400-e29b-41d4-a716-446655440000"
+                    title: "Type 2 Diabetes"
+                    severity: "MODERATE"
+                    status: "ACTIVE"
+                activeMedications:
+                  - id: "550e8400-e29b-41d4-a716-446655440001"
+                    medicationName: "Metformin"
+                    dosage: "500mg"
+                    frequency: "twice daily"
+                    route: "ORAL"
+                    status: "ACTIVE"
+                allergies:
+                  - id: "550e8400-e29b-41d4-a716-446655440002"
+                    substance: "Penicillin"
+                    type: "DRUG"
+                    severity: "LIFE_THREATENING"
+                    reaction: "anaphylaxis"
+                recentVitals:
+                  - heartRate: 72
+                    temperature: 37.0
+                    recordedAt: "2026-02-20T09:00:00Z"
+                lastVisitDate: "2026-02-20"
+                totalVisits: 5
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Role not permitted (only DOCTOR and ADMIN allowed)
+        "404":
+          description: Patient not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    MedicalSummaryResponse:
+      type: object
+      properties:
+        patientId:
+          type: string
+        activeProblems:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProblemSummary'
+        activeMedications:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicationSummary'
+        allergies:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllergySummary'
+        recentVitals:
+          type: array
+          maxItems: 5
+          items:
+            $ref: '#/components/schemas/VitalsSummary'
+        lastVisitDate:
+          type: string
+          format: date
+          nullable: true
+        totalVisits:
+          type: integer
+
+    ProblemSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        severity:
+          type: string
+          enum: [MILD, MODERATE, SEVERE]
+        status:
+          type: string
+          enum: [ACTIVE, RESOLVED, INACTIVE]
+        onsetDate:
+          type: string
+          format: date
+          nullable: true
+
+    MedicationSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        medicationName:
+          type: string
+        dosage:
+          type: string
+        frequency:
+          type: string
+        route:
+          type: string
+        status:
+          type: string
+          enum: [ACTIVE, DISCONTINUED, COMPLETED]
+        prescribedBy:
+          type: string
+
+    AllergySummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        substance:
+          type: string
+        type:
+          type: string
+          enum: [DRUG, FOOD, ENVIRONMENTAL, OTHER]
+        severity:
+          type: string
+          enum: [MILD, MODERATE, SEVERE, LIFE_THREATENING]
+        reaction:
+          type: string
+
+    VitalsSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        bloodPressureSystolic:
+          type: integer
+          nullable: true
+        bloodPressureDiastolic:
+          type: integer
+          nullable: true
+        heartRate:
+          type: integer
+          nullable: true
+        temperature:
+          type: number
+          nullable: true
+        oxygenSaturation:
+          type: integer
+          nullable: true
+        recordedAt:
+          type: string
+          format: date-time

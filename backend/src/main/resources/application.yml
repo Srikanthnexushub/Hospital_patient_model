@@ -40,6 +40,10 @@ spring:
     baseline-on-migrate: false
     validate-on-migrate: true
 
+  jackson:
+    serialization:
+      write-big-decimal-as-plain: true
+
 # ── Actuator / Health / Metrics ────────────────────────────────────────────
 management:
   endpoints:
@@ -84,7 +88,10 @@ logging:
     org.springframework.security: WARN
     org.hibernate.SQL: WARN
 
-# ── SpringDoc OpenAPI ────────────────────────────────────────────────────────
+# ── Billing ──────────────────────────────────────────────────────────────────
+billing:
+  tax-rate: ${BILLING_TAX_RATE:0.00}
+
 springdoc:
   api-docs:
     path: /api-docs
@@ -106,3 +113,5 @@ app:
     lockout:
       max-attempts: ${AUTH_LOCKOUT_MAX_ATTEMPTS:5}
       duration-minutes: ${AUTH_LOCKOUT_DURATION_MINUTES:15}
+  notes:
+    encryption-key: ${APP_NOTES_ENCRYPTION_KEY}

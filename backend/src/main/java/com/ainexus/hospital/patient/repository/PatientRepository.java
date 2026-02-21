@@ -56,5 +56,8 @@ public interface PatientRepository extends JpaRepository<Patient, String> {
             @Param("excludeId") String excludePatientId
     );
 
+    /** Module 6 Dashboard — count patients by status. */
+    long countByStatus(PatientStatus status);
+
     // NOTE: No delete methods are exposed — hard deletes are FORBIDDEN (spec FR-034).
 }

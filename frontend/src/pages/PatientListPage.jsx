@@ -1,7 +1,10 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth.js'
 import { useSearchPatients } from '../hooks/usePatients.js'
 import { useListState } from '../hooks/useListState.js'
+import { searchPatients } from '../api/patientApi.js'
+import { downloadCsv } from '../utils/exportCsv.js'
 import SearchBox from '../components/common/SearchBox.jsx'
 import FilterBar from '../components/common/FilterBar.jsx'
 import PatientList from '../components/patient/PatientList.jsx'
@@ -15,6 +18,7 @@ export default function PatientListPage() {
   } = useListState()
 
   const canRegister = role === 'RECEPTIONIST' || role === 'ADMIN'
+  const [exporting, setExporting] = useState(false)
 
   const { data, isLoading, isError } = useSearchPatients({
     query: query || undefined,
@@ -32,17 +36,53 @@ export default function PatientListPage() {
     : null
   const hasQuery = !!(query || status !== 'ACTIVE' || gender !== 'ALL' || bloodGroup !== 'ALL')
 
+  async function handleExport() {
+    setExporting(true)
+    try {
+      const all = await searchPatients({
+        query: query || undefined,
+        status,
+        gender,
+        bloodGroup,
+        page: 0,
+        size: 1000,
+      })
+      const headers = ['Patient ID', 'First Name', 'Last Name', 'Age', 'Gender', 'Phone', 'Status']
+      const rows = all.content.map(p => [
+        p.patientId,
+        p.firstName,
+        p.lastName,
+        p.age,
+        p.gender,
+        p.phone,
+        p.status,
+      ])
+      downloadCsv('patients', headers, rows)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 gap-4">
         <h1 className="text-2xl font-bold text-gray-900">Patients</h1>
-        {canRegister && (
-          <Link to="/patients/new" className="btn-primary self-start sm:self-auto">
-            + Register New Patient
-          </Link>
-        )}
+        <div className="flex gap-2 self-start sm:self-auto">
+          <button
+            onClick={handleExport}
+            disabled={exporting || !data || data.totalElements === 0}
+            className="btn-secondary text-sm disabled:opacity-50"
+          >
+            {exporting ? 'Exporting…' : '↓ Export CSV'}
+          </button>
+          {canRegister && (
+            <Link to="/patients/new" className="btn-primary">
+              + Register New Patient
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Search + Filters */}

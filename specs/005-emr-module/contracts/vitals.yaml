@@ -1,0 +1,242 @@
+openapi: "3.0.3"
+info:
+  title: EMR Vitals API
+  version: "1.0"
+  description: Patient vitals recording and retrieval (US1)
+
+paths:
+  /api/v1/appointments/{appointmentId}/vitals:
+    post:
+      summary: Record or replace vitals for an appointment
+      description: |
+        Upserts a vitals record for the given appointment. If vitals already exist for this
+        appointment they are fully replaced. At least one measurement field must be non-null.
+      operationId: recordVitals
+      tags: [Vitals]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "A20261001001"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RecordVitalsRequest'
+            example:
+              bloodPressureSystolic: 120
+              bloodPressureDiastolic: 80
+              heartRate: 72
+              temperature: 37.0
+              weight: 72.5
+              height: 175.0
+              oxygenSaturation: 98
+              respiratoryRate: 16
+      responses:
+        "200":
+          description: Vitals saved (create or replace)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VitalsResponse'
+        "400":
+          description: Validation error (no measurements, invalid BP, O2 out of range)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthenticated
+        "403":
+          description: Role not permitted (RECEPTIONIST denied)
+        "404":
+          description: Appointment not found
+
+    get:
+      summary: Get vitals for a specific appointment
+      operationId: getVitalsByAppointment
+      tags: [Vitals]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Vitals record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VitalsResponse'
+        "403":
+          description: Role not permitted (RECEPTIONIST denied)
+        "404":
+          description: No vitals recorded for this appointment
+
+  /api/v1/patients/{patientId}/vitals:
+    get:
+      summary: Get paginated vitals history for a patient
+      description: Returns the last 10 records by default, sorted most-recent first.
+      operationId: getVitalsByPatient
+      tags: [Vitals]
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: patientId
+          in: path
+          required: true
+          schema:
+            type: string
+            example: "P2026001"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: size
+          in: query
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Paginated vitals list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VitalsPage'
+        "403":
+          description: Role not permitted (RECEPTIONIST denied)
+        "404":
+          description: Patient not found
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    RecordVitalsRequest:
+      type: object
+      description: At least one field must be non-null.
+      properties:
+        bloodPressureSystolic:
+          type: integer
+          nullable: true
+          example: 120
+        bloodPressureDiastolic:
+          type: integer
+          nullable: true
+          example: 80
+          description: Must be ≤ bloodPressureSystolic when both provided
+        heartRate:
+          type: integer
+          nullable: true
+          example: 72
+        temperature:
+          type: number
+          format: decimal
+          nullable: true
+          example: 37.0
+          description: Celsius
+        weight:
+          type: number
+          format: decimal
+          nullable: true
+          example: 72.5
+          description: Kilograms
+        height:
+          type: number
+          format: decimal
+          nullable: true
+          example: 175.0
+          description: Centimetres
+        oxygenSaturation:
+          type: integer
+          nullable: true
+          minimum: 0
+          maximum: 100
+          example: 98
+        respiratoryRate:
+          type: integer
+          nullable: true
+          example: 16
+
+    VitalsResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+        appointmentId:
+          type: string
+        patientId:
+          type: string
+        bloodPressureSystolic:
+          type: integer
+          nullable: true
+        bloodPressureDiastolic:
+          type: integer
+          nullable: true
+        heartRate:
+          type: integer
+          nullable: true
+        temperature:
+          type: number
+          nullable: true
+        weight:
+          type: number
+          nullable: true
+        height:
+          type: number
+          nullable: true
+        oxygenSaturation:
+          type: integer
+          nullable: true
+        respiratoryRate:
+          type: integer
+          nullable: true
+        recordedBy:
+          type: string
+        recordedAt:
+          type: string
+          format: date-time
+
+    VitalsPage:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/VitalsResponse'
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+        number:
+          type: integer
+        size:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+          format: date-time

@@ -1,0 +1,191 @@
+openapi: "3.0.3"
+info:
+  title: Clinical Notes API
+  version: "1.0"
+  description: |
+    Module 3 — Clinical Notes sub-resource of Appointments.
+    HIPAA: note content MUST NOT appear in application logs.
+    `privateNotes` is excluded from responses to RECEPTIONIST and NURSE roles.
+
+servers:
+  - url: /api/v1
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    ClinicalNotesRequest:
+      type: object
+      description: |
+        Creates or updates clinical notes for an appointment.
+        Appointment must be IN_PROGRESS or COMPLETED.
+        Only the assigned doctor or ADMIN may write notes.
+      properties:
+        chiefComplaint:
+          type: string
+          description: "Patient's primary complaint. Encrypted at rest."
+          nullable: true
+        diagnosis:
+          type: string
+          description: "Doctor's diagnosis. Encrypted at rest."
+          nullable: true
+        treatment:
+          type: string
+          description: "Treatment plan. Encrypted at rest."
+          nullable: true
+        prescription:
+          type: string
+          description: "Prescription details. Encrypted at rest."
+          nullable: true
+        followUpRequired:
+          type: boolean
+          default: false
+        followUpDays:
+          type: integer
+          minimum: 1
+          nullable: true
+          description: "Required when followUpRequired=true. Must be null when followUpRequired=false."
+        privateNotes:
+          type: string
+          description: |
+            Private notes visible only to DOCTOR and ADMIN.
+            NEVER returned to RECEPTIONIST or NURSE.
+            Encrypted at rest.
+          nullable: true
+
+    ClinicalNotesResponse:
+      type: object
+      properties:
+        appointmentId:
+          type: string
+          example: "APT20260001"
+        chiefComplaint:
+          type: string
+          nullable: true
+        diagnosis:
+          type: string
+          nullable: true
+        treatment:
+          type: string
+          nullable: true
+        prescription:
+          type: string
+          nullable: true
+        followUpRequired:
+          type: boolean
+        followUpDays:
+          type: integer
+          nullable: true
+        privateNotes:
+          type: string
+          nullable: true
+          description: |
+            Present only when caller role is DOCTOR (own appointment) or ADMIN.
+            Absent from response for RECEPTIONIST and NURSE.
+        createdBy:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        traceId:
+          type: string
+        fieldErrors:
+          type: array
+          items:
+            type: object
+
+paths:
+  # ── US6: Clinical Notes ────────────────────────────────────────────────────
+  /appointments/{appointmentId}/notes:
+    post:
+      operationId: upsertClinicalNotes
+      summary: "Create or update clinical notes (US6)"
+      description: |
+        Creates notes if none exist; updates in place if they do (upsert semantics).
+        Roles: assigned DOCTOR or ADMIN only.
+        Appointment must be IN_PROGRESS or COMPLETED.
+        All text fields are encrypted before storage — never appear in logs.
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClinicalNotesRequest'
+      responses:
+        "200":
+          description: "Notes created or updated."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicalNotesResponse'
+        "400":
+          description: |
+            Validation error — e.g., followUpDays set without followUpRequired=true,
+            or appointment status is not IN_PROGRESS/COMPLETED.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "403":
+          description: "Caller is not the assigned doctor or ADMIN."
+        "404":
+          description: "Appointment not found."
+        "401":
+          description: "Unauthorized."
+
+    get:
+      operationId: getClinicalNotes
+      summary: "Retrieve clinical notes (US6)"
+      description: |
+        Returns clinical notes for the appointment.
+        `privateNotes` is excluded for RECEPTIONIST and NURSE roles.
+        DOCTOR: can only retrieve notes for own appointments.
+        ADMIN: can retrieve all notes.
+      parameters:
+        - name: appointmentId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Clinical notes."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicalNotesResponse'
+        "403":
+          description: "DOCTOR attempting to view notes for another doctor's patient."
+        "404":
+          description: "Appointment not found or no notes exist for this appointment."
+        "401":
+          description: "Unauthorized."
