@@ -11,6 +11,8 @@ Auto-generated from feature plans. Last updated: 2026-02-20
 - PostgreSQL 15 — new tables V12–V16 via Flyway; existing V1–V11 untouched (004-billing-module)
 - Java 17 / Spring Boot 3.2.x (Hibernate 6.4.x) + Spring Data JPA, Spring Security (existing), MapStruct, Lombok, Resilience4j, Flyway, Micrometer (005-emr-module)
 - PostgreSQL 15 — 4 new entity tables + 1 audit table via Flyway V17–V21 (005-emr-module)
+- Java 17 (LTS), Spring Boot 3.2.x + Spring Data JPA (Hibernate 6), Spring Security, Lombok, MapStruct, Resilience4j, Micrometer, Flyway 10.x, jjwt 0.12.5 (006-clinical-intelligence)
+- PostgreSQL 15 — 3 new tables via Flyway V22, V23, V24; no schema changes to existing tables (006-clinical-intelligence)
 
 | Layer | Technology |
 |---|---|
@@ -78,6 +80,7 @@ bash scripts/generate-certs.sh
 5. **RBAC** — server-side role check on EVERY endpoint; client-side checks are cosmetic
 
 ## Recent Changes
+- 006-clinical-intelligence: Added Java 17 (LTS), Spring Boot 3.2.x + Spring Data JPA (Hibernate 6), Spring Security, Lombok, MapStruct, Resilience4j, Micrometer, Flyway 10.x, jjwt 0.12.5
 - 005-emr-module: Added Java 17 / Spring Boot 3.2.x (Hibernate 6.4.x) + Spring Data JPA, Spring Security (existing), MapStruct, Lombok, Resilience4j, Flyway, Micrometer
 - `004-billing-module`: Billing & Invoicing Module — full invoice lifecycle (US1–US5) + full frontend UI
   - **invoiceId format**: `INV` + year + 6-digit zero-padded seq (e.g. `INV2026000001`); expands beyond 999999
@@ -90,7 +93,6 @@ bash scripts/generate-certs.sh
   - **Flyway migrations**: V12 (invoice_id_sequences), V13 (invoices), V14 (invoice_line_items), V15 (invoice_payments), V16 (invoice_audit_log)
   - **Test results**: 108 unit + 191 integration = 299 total, 0 failures
   - **Frontend**: `billingApi.js`, `useInvoices.js`, `InvoiceListPage`, `InvoiceCreatePage`, `InvoiceDetailPage`, `FinancialReportPage`; "Generate Invoice" button on COMPLETED appointments; Billing nav (non-NURSE); Reports nav (ADMIN)
-- `003-appointment-scheduling`: Appointment Scheduling Module — full appointment lifecycle (US1–US7)
   - **appointmentId format**: `APT` + year + 4-digit zero-padded seq (e.g. `APT20260001`)
   - **Status machine**: SCHEDULED → CONFIRMED → CHECKED_IN → IN_PROGRESS → COMPLETED; CANCELLED/NO_SHOW are terminal; transitions enforced in `AppointmentStatusService`
   - **Conflict detection**: `AppointmentRepository.findOverlappingAppointments()` uses `SELECT FOR UPDATE` to prevent race conditions
