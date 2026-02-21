@@ -72,6 +72,11 @@ public abstract class BaseIntegrationTest {
                 .setRequestFactory(new HttpComponentsClientHttpRequestFactory(HttpClients.createDefault()));
 
         // Clean in reverse FK dependency order
+        // Module 6 Clinical Intelligence tables (most dependent — truncate first)
+        jdbcTemplate.execute("TRUNCATE TABLE clinical_alerts CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE lab_results CASCADE");
+        jdbcTemplate.execute("TRUNCATE TABLE lab_orders CASCADE");
+
         // Module 5 EMR tables (dependent on appointments and patients)
         jdbcTemplate.execute("TRUNCATE TABLE emr_audit_log RESTART IDENTITY CASCADE");
         jdbcTemplate.execute("TRUNCATE TABLE patient_vitals CASCADE");

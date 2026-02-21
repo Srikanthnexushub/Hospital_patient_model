@@ -100,6 +100,10 @@ public interface AppointmentRepository extends JpaRepository<Appointment, String
     Optional<Appointment> findFirstByPatientIdAndStatusOrderByAppointmentDateDesc(
             String patientId, AppointmentStatus status);
 
+    /** Module 6 Dashboard — distinct patient IDs seen by a specific doctor. */
+    @Query("SELECT DISTINCT a.patientId FROM Appointment a WHERE a.doctorId = :doctorId")
+    List<String> findDistinctPatientIdsByDoctorId(@Param("doctorId") String doctorId);
+
     /** Medical Summary — next upcoming appointment (SCHEDULED or CONFIRMED) on or after today. */
     @Query("""
             SELECT a FROM Appointment a
