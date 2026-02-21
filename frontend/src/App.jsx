@@ -13,6 +13,8 @@ import InvoiceCreatePage from './pages/InvoiceCreatePage.jsx'
 import InvoiceDetailPage from './pages/InvoiceDetailPage.jsx'
 import FinancialReportPage from './pages/FinancialReportPage.jsx'
 import MedicalSummaryPage from './pages/MedicalSummaryPage.jsx'
+import ClinicalAlertsFeedPage from './pages/ClinicalAlertsFeedPage.jsx'
+import PatientRiskDashboardPage from './pages/PatientRiskDashboardPage.jsx'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth()
@@ -48,6 +50,12 @@ function NavBar() {
         <NavLink to="/appointments" className={linkCls}>Appointments</NavLink>
         {role !== 'NURSE' && (
           <NavLink to="/invoices" className={linkCls}>Billing</NavLink>
+        )}
+        {['DOCTOR', 'NURSE', 'ADMIN'].includes(role) && (
+          <NavLink to="/alerts" className={linkCls}>Alerts</NavLink>
+        )}
+        {['DOCTOR', 'ADMIN'].includes(role) && (
+          <NavLink to="/dashboard" className={linkCls}>Dashboard</NavLink>
         )}
         {role === 'ADMIN' && (
           <NavLink to="/reports/financial" className={linkCls}>Reports</NavLink>
@@ -127,6 +135,17 @@ export default function App() {
                   <Route path="/reports/financial" element={
                     <RoleRoute allowedRoles={['ADMIN']}>
                       <FinancialReportPage />
+                    </RoleRoute>
+                  } />
+                  {/* Module 6: Clinical Intelligence */}
+                  <Route path="/alerts" element={
+                    <RoleRoute allowedRoles={['DOCTOR', 'NURSE', 'ADMIN']}>
+                      <ClinicalAlertsFeedPage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/dashboard" element={
+                    <RoleRoute allowedRoles={['DOCTOR', 'ADMIN']}>
+                      <PatientRiskDashboardPage />
                     </RoleRoute>
                   } />
                   <Route path="*" element={<Navigate to="/" replace />} />

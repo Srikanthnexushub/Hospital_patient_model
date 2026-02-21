@@ -8,10 +8,17 @@ import {
   useMedications, usePrescribeMedication, useUpdateMedication,
   useAllergies, useRecordAllergy, useDeleteAllergy,
 } from '../hooks/useEmr.js'
+import { useNews2 } from '../api/news2.js'
+import { usePatientAlerts } from '../api/clinicalAlerts.js'
+import { useInteractionCheck } from '../api/drugInteractions.js'
 import PatientProfile from '../components/patient/PatientProfile.jsx'
 import PatientEditForm from '../components/patient/PatientEditForm.jsx'
 import LoadingSpinner from '../components/common/LoadingSpinner.jsx'
 import Pagination from '../components/common/Pagination.jsx'
+import News2ScoreCard from '../components/news2/News2ScoreCard.jsx'
+import AlertBadge from '../components/alerts/AlertBadge.jsx'
+import LabOrderForm from '../components/lab/LabOrderForm.jsx'
+import LabOrderList from '../components/lab/LabOrderList.jsx'
 
 // ── Shared helpers ────────────────────────────────────────────────────────────
 
@@ -126,7 +133,6 @@ function ProblemsTab({ patientId, role }) {
 
   return (
     <div className="space-y-4">
-      {/* Add Problem form */}
       {canWrite && (
         <div>
           {!showForm ? (
@@ -197,7 +203,6 @@ function ProblemsTab({ patientId, role }) {
         </div>
       )}
 
-      {/* Problem list */}
       {problems.length === 0 ? (
         <p className="text-gray-500 text-sm">No active problems.</p>
       ) : (
@@ -251,10 +256,15 @@ function MedicationsTab({ patientId, role }) {
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState(EMPTY_MED)
   const [err, setErr] = useState('')
+  const [showInteractionCheck, setShowInteractionCheck] = useState(false)
+  const [drugToCheck, setDrugToCheck] = useState('')
+  const [interactionResult, setInteractionResult] = useState(null)
+  const [interactionErr, setInteractionErr] = useState('')
 
   const { data: medications = [], isLoading, isError } = useMedications(patientId)
   const prescribeMutation   = usePrescribeMedication(patientId)
   const updateMutation      = useUpdateMedication(patientId)
+  const interactionCheck    = useInteractionCheck(patientId)
 
   if (isLoading) return <LoadingSpinner />
   if (isError)   return <p className="text-red-600 text-sm">Failed to load medications.</p>
@@ -295,8 +305,95 @@ function MedicationsTab({ patientId, role }) {
     await updateMutation.mutateAsync({ medicationId, data: { status: 'DISCONTINUED' } })
   }
 
+  async function handleInteractionCheck(e) {
+    e.preventDefault()
+    setInteractionErr('')
+    setInteractionResult(null)
+    if (!drugToCheck.trim()) { setInteractionErr('Enter a drug name.'); return }
+    try {
+      const result = await interactionCheck.mutateAsync(drugToCheck.trim())
+      setInteractionResult(result)
+    } catch {
+      setInteractionErr('Failed to check interactions.')
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {/* Interaction check button — DOCTOR/ADMIN */}
+      {canWrite && (
+        <div>
+          {!showInteractionCheck ? (
+            <button
+              onClick={() => { setShowInteractionCheck(true); setInteractionResult(null) }}
+              className="text-sm font-medium text-purple-600 hover:text-purple-800"
+            >
+              Check Drug Interaction
+            </button>
+          ) : (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 space-y-3">
+              <p className="text-sm font-semibold text-purple-800">Drug Interaction Check</p>
+              <form onSubmit={handleInteractionCheck} className="flex gap-2">
+                <input
+                  value={drugToCheck}
+                  onChange={e => setDrugToCheck(e.target.value)}
+                  placeholder="Enter drug name…"
+                  className="flex-1 border border-gray-300 rounded px-3 py-1.5 text-sm"
+                />
+                <button type="submit" disabled={interactionCheck.isPending}
+                  className="btn-primary text-sm py-1.5 px-4">
+                  {interactionCheck.isPending ? 'Checking…' : 'Check'}
+                </button>
+                <button type="button" onClick={() => { setShowInteractionCheck(false); setInteractionResult(null); setDrugToCheck('') }}
+                  className="btn-secondary text-sm py-1.5 px-4">
+                  Close
+                </button>
+              </form>
+              {interactionErr && <p className="text-xs text-red-600">{interactionErr}</p>}
+              {interactionResult && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-bold ${interactionResult.safe ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                      {interactionResult.safe ? 'SAFE' : 'CAUTION'}
+                    </span>
+                    <span className="text-sm font-medium">{interactionResult.drugName}</span>
+                  </div>
+                  {interactionResult.interactions?.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-gray-600">Drug Interactions:</p>
+                      {interactionResult.interactions.map((ix, i) => (
+                        <div key={i} className="text-xs bg-white border border-gray-200 rounded p-2">
+                          <span className={`font-semibold ${ix.severity === 'CONTRAINDICATED' || ix.severity === 'MAJOR' ? 'text-red-700' : 'text-orange-700'}`}>
+                            {ix.severity}
+                          </span>
+                          {' · '}{ix.drug1} + {ix.drug2}
+                          {ix.clinicalEffect && <p className="text-gray-500 mt-0.5">{ix.clinicalEffect}</p>}
+                          {ix.recommendation && <p className="text-gray-400 italic mt-0.5">{ix.recommendation}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {interactionResult.allergyContraindications?.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-xs font-medium text-red-700">Allergy Contraindications:</p>
+                      {interactionResult.allergyContraindications.map((ac, i) => (
+                        <div key={i} className="text-xs bg-red-50 border border-red-200 rounded p-2">
+                          <span className="font-semibold text-red-700">Allergy to {ac.allergySubstance}</span>
+                          {ac.reason && <p className="text-gray-500 mt-0.5">{ac.reason}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {interactionResult.safe && interactionResult.interactions?.length === 0 && interactionResult.allergyContraindications?.length === 0 && (
+                    <p className="text-xs text-green-700">No known interactions or contraindications.</p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Prescribe form */}
       {canWrite && (
         <div>
@@ -376,7 +473,6 @@ function MedicationsTab({ patientId, role }) {
         </div>
       )}
 
-      {/* Medication list */}
       {medications.length === 0 ? (
         <p className="text-gray-500 text-sm">No active medications.</p>
       ) : (
@@ -454,7 +550,6 @@ function AllergiesTab({ patientId, role }) {
 
   return (
     <div className="space-y-4">
-      {/* Record allergy form */}
       {canWrite && (
         <div>
           {!showForm ? (
@@ -518,7 +613,6 @@ function AllergiesTab({ patientId, role }) {
         </div>
       )}
 
-      {/* Allergy list */}
       {allergies.length === 0 ? (
         <p className="text-gray-500 text-sm">No known allergies.</p>
       ) : (
@@ -551,6 +645,20 @@ function AllergiesTab({ patientId, role }) {
   )
 }
 
+// ── Labs tab (Module 6) ───────────────────────────────────────────────────────
+
+function LabsTab({ patientId, role }) {
+  const canOrder  = ['DOCTOR', 'ADMIN'].includes(role)
+  const canRecord = ['NURSE', 'DOCTOR', 'ADMIN'].includes(role)
+
+  return (
+    <div className="space-y-4">
+      {canOrder && <LabOrderForm patientId={patientId} />}
+      <LabOrderList patientId={patientId} canRecord={canRecord} />
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function PatientProfilePage({ editMode = false }) {
@@ -561,6 +669,16 @@ export default function PatientProfilePage({ editMode = false }) {
   const [activeTab, setActiveTab] = useState('profile')
 
   const { data: patient, isLoading, isError, error, refetch } = usePatient(patientId)
+
+  // Module 6: NEWS2 + alert count (visible to DOCTOR/NURSE/ADMIN)
+  const canViewClinical = ['DOCTOR', 'NURSE', 'ADMIN'].includes(role)
+  const { data: news2 } = useNews2(canViewClinical ? patientId : null)
+  const { data: alertsPage } = usePatientAlerts(
+    canViewClinical ? patientId : null,
+    'ACTIVE', undefined, 0
+  )
+  const activeAlertCount = alertsPage?.totalElements ?? 0
+  const criticalAlertCount = alertsPage?.content?.filter(a => a.severity === 'CRITICAL').length ?? 0
 
   if (isLoading) return <div className="max-w-3xl mx-auto px-4 py-8"><LoadingSpinner /></div>
 
@@ -584,18 +702,34 @@ export default function PatientProfilePage({ editMode = false }) {
     <div className="max-w-3xl mx-auto px-4 py-8">
 
       {/* Page header */}
-      <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {editMode ? 'Edit Patient' : 'Patient Profile'}
-        </h1>
-        {!editMode && canViewSummary && (
-          <Link
-            to={`/patients/${patientId}/medical-summary`}
-            className="inline-flex items-center gap-1.5 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
-          >
-            <span>🩺</span> Medical Summary
-          </Link>
-        )}
+      <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold text-gray-900">
+            {editMode ? 'Edit Patient' : 'Patient Profile'}
+          </h1>
+          {/* Active alert count badge */}
+          {!editMode && canViewClinical && activeAlertCount > 0 && (
+            <AlertBadge
+              count={activeAlertCount}
+              severity={criticalAlertCount > 0 ? 'CRITICAL' : 'WARNING'}
+              label="Alerts"
+            />
+          )}
+        </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* NEWS2 score card in header */}
+          {!editMode && canViewClinical && news2 && (
+            <News2ScoreCard news2={news2} />
+          )}
+          {!editMode && canViewSummary && (
+            <Link
+              to={`/patients/${patientId}/medical-summary`}
+              className="inline-flex items-center gap-1.5 text-sm font-medium bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              <span>🩺</span> Medical Summary
+            </Link>
+          )}
+        </div>
       </div>
 
       {/* Success banner */}
@@ -614,6 +748,7 @@ export default function PatientProfilePage({ editMode = false }) {
             ['problems',     'Problems'],
             ['medications',  'Medications'],
             ['allergies',    'Allergies'],
+            ...(canViewClinical ? [['labs', 'Labs']] : []),
           ].map(([tab, label]) => (
             <button
               key={tab}
@@ -641,6 +776,8 @@ export default function PatientProfilePage({ editMode = false }) {
           <MedicationsTab patientId={patientId} role={role} />
         ) : activeTab === 'allergies' ? (
           <AllergiesTab patientId={patientId} role={role} />
+        ) : activeTab === 'labs' ? (
+          <LabsTab patientId={patientId} role={role} />
         ) : (
           <PatientProfile
             patient={patient}
